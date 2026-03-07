@@ -10,6 +10,7 @@ import { analyzeStepsSmart } from '$lib/server/step-analyzer';
 import { getSubstitutions } from '$lib/substitutions';
 import { categorizeIngredient, mapDbCategory } from '$lib/ingredient-categories';
 import type { IngredientCategory } from '$lib/ingredient-categories';
+import { scaleRecipeSmart } from '$lib/server/recipe-scaler-ai';
 import type { PageServerLoad, Actions } from './$types';
 
 export const load: PageServerLoad = async ({ locals, params }) => {
@@ -65,6 +66,19 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 				foodCategory = categorizeIngredient(ri.name || ri.raw_text);
 			}
 
+			// Find first step that mentions this ingredient
+			const searchName = (ri.name || known_name || '').toLowerCase();
+			let firstUsedInStep = -1;
+			if (searchName.length >= 3) {
+				const instructions = JSON.parse(recipe.instructions) as string[];
+				for (let si = 0; si < instructions.length; si++) {
+					if (instructions[si].toLowerCase().includes(searchName)) {
+						firstUsedInStep = si;
+						break;
+					}
+				}
+			}
+
 			return {
 				raw_text: ri.raw_text,
 				quantity: ri.quantity,
@@ -75,7 +89,8 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 				density_g_per_cup,
 				user_override,
 				substitutions,
-				foodCategory
+				foodCategory,
+				firstUsedInStep
 			};
 		})
 	);
@@ -146,6 +161,37 @@ export const actions: Actions = {
 		await setRecipeSteps(params.id, analyzedSteps);
 
 		return { success: true };
+	},
+
+	scale: async ({ request, params, locals }) => {
+		if (!locals.user) {
+			redirect(303, '/login');
+		}
+
+		const formData = await request.formData();
+		const factor = parseFloat(formData.get('scale_factor')?.toString() ?? '1');
+
+		if (isNaN(factor) || factor <= 0 || factor > 100) {
+			return fail(400, { error: 'Invalid scale factor.' });
+		}
+
+		const recipe = await getRecipeById(params.id, locals.user.id);
+		if (!recipe) {
+			return fail(404, { error: 'Recipe not found.' });
+		}
+
+		const ingredients = JSON.parse(recipe.ingredients) as string[];
+		const instructions = JSON.parse(recipe.instructions) as string[];
+
+		const result = await scaleRecipeSmart(ingredients, instructions, factor, recipe.yield);
+
+		return {
+			scaled: {
+				ingredients: result.ingredients.map((si) => si.scaled),
+				instructions: result.instructions,
+				factor: result.scaleFactor,
+			}
+		};
 	},
 
 	delete: async ({ params, locals }) => {

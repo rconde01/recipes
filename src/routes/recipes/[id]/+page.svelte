@@ -3,11 +3,102 @@
 	import { formatSubAmount } from '$lib/substitutions';
 	import { CATEGORY_LABELS, CATEGORY_COLORS, CATEGORY_ORDER } from '$lib/ingredient-categories';
 	import type { IngredientCategory } from '$lib/ingredient-categories';
+	import { scaleRecipeLocal } from '$lib/recipe-scaler';
 
 	let { data, form } = $props<{ data: PageData; form: ActionData }>();
 
 	let ingredients = $state(['']);
 	let instructions = $state(['']);
+
+	// Scaler state
+	let scaleFactor = $state(1);
+	let isScaling = $state(false);
+	let scaleByIngredient = $state(false);
+	let selectedIngredientIdx = $state(-1);
+	let targetIngredientQty = $state('');
+
+	// AI-scaled result (set via fetch, not nested form)
+	let aiScaleResult = $state<{ ingredients: string[]; instructions: string[]; factor: number } | null>(null);
+
+	// Parsed ingredient type (used in several derivations below)
+	type ParsedIngredient = typeof data.parsedIngredients[0];
+
+	// Ingredients that have parseable quantities (for scale-by-ingredient)
+	let scalableIngredients = $derived(
+		data.parsedIngredients
+			.map((pi: ParsedIngredient, idx: number) => ({ idx, pi }))
+			.filter(({ pi }: { pi: ParsedIngredient }) => pi.quantity != null && pi.quantity > 0)
+	);
+
+	// Compute scale factor from ingredient target
+	function updateFactorFromIngredient() {
+		if (selectedIngredientIdx < 0) return;
+		const pi = data.parsedIngredients[selectedIngredientIdx];
+		if (!pi || pi.quantity == null || pi.quantity <= 0) return;
+		const target = parseFloat(targetIngredientQty);
+		if (isNaN(target) || target <= 0) return;
+		scaleFactor = target / pi.quantity;
+	}
+
+	// Trigger AI scaling via fetch
+	async function triggerAiScale() {
+		if (scaleFactor === 1 || isScaling) return;
+		isScaling = true;
+		try {
+			const formData = new FormData();
+			formData.set('scale_factor', String(scaleFactor));
+			const res = await fetch(`?/scale`, { method: 'POST', body: formData });
+			const result = await res.json();
+			// SvelteKit returns { type, data } for form actions
+			const d = result?.data;
+			if (d && typeof d === 'string') {
+				const parsed = JSON.parse(d);
+				if (parsed?.scaled) {
+					aiScaleResult = parsed.scaled;
+				}
+			} else if (d?.scaled) {
+				aiScaleResult = d.scaled;
+			} else if (result?.type === 'success' && result?.data) {
+				// Try different response shapes
+				const inner = typeof result.data === 'string' ? JSON.parse(result.data) : result.data;
+				if (inner?.scaled) aiScaleResult = inner.scaled;
+			}
+		} catch (err) {
+			console.error('AI scale failed:', err);
+		} finally {
+			isScaling = false;
+		}
+	}
+
+	// Reset AI result when factor changes
+	$effect(() => {
+		if (aiScaleResult && aiScaleResult.factor !== scaleFactor) {
+			aiScaleResult = null;
+		}
+	});
+
+	// Local scaled result (instant, client-side)
+	let localScaleResult = $derived(() => {
+		if (scaleFactor === 1) return null;
+		if (aiScaleResult && aiScaleResult.factor === scaleFactor) return null; // use AI result
+		return scaleRecipeLocal(data.recipe.ingredients, data.recipe.instructions, scaleFactor);
+	});
+
+	// Active scale result: AI if available, else local
+	let activeScale = $derived(() => {
+		if (aiScaleResult && aiScaleResult.factor === scaleFactor) {
+			return { ingredients: aiScaleResult.ingredients, instructions: aiScaleResult.instructions };
+		}
+		const local = localScaleResult();
+		if (local) {
+			return { ingredients: local.ingredients.map((si) => si.scaled), instructions: local.instructions };
+		}
+		return null;
+	});
+
+	// Display ingredients/instructions: scaled if active, original otherwise
+	let displayIngredients = $derived(activeScale()?.ingredients ?? data.recipe.ingredients);
+	let displayInstructions = $derived(activeScale()?.instructions ?? data.recipe.instructions);
 
 	$effect(() => {
 		const r = data.recipe;
@@ -40,11 +131,41 @@
 	let allTechniques = $derived([...new Set(data.timelineSteps.flatMap((s: { techniques: string[] }) => s.techniques))]);
 	let maxDuration = $derived(Math.max(...data.timelineSteps.map((s: { duration_minutes: number }) => s.duration_minutes), 1));
 
-	// Group ingredients by food category
-	type ParsedIngredient = typeof data.parsedIngredients[0];
+	// Ingredient sort mode
+	type SortMode = 'category' | 'order-used' | 'original';
+	let sortMode = $state<SortMode>('category');
+
+	// Group ingredients by food category or sort by order used
 	let groupedIngredients = $derived(() => {
+		const indexed = data.parsedIngredients.map((pi: ParsedIngredient, idx: number) => ({ idx, pi }));
+
+		if (sortMode === 'order-used') {
+			// Sort by first step that mentions the ingredient, then original order for unmatched
+			const sorted = [...indexed].sort((a, b) => {
+				const aStep = a.pi.firstUsedInStep < 0 ? 9999 : a.pi.firstUsedInStep;
+				const bStep = b.pi.firstUsedInStep < 0 ? 9999 : b.pi.firstUsedInStep;
+				if (aStep !== bStep) return aStep - bStep;
+				return a.idx - b.idx;
+			});
+			// Group by step number
+			const groups = new Map<string, { idx: number; pi: ParsedIngredient }[]>();
+			for (const item of sorted) {
+				const stepLabel = item.pi.firstUsedInStep >= 0
+					? `Step ${item.pi.firstUsedInStep + 1}`
+					: 'Not referenced in directions';
+				if (!groups.has(stepLabel)) groups.set(stepLabel, []);
+				groups.get(stepLabel)!.push(item);
+			}
+			return [...groups.entries()];
+		}
+
+		if (sortMode === 'original') {
+			return [['All Ingredients', indexed]] as [string, { idx: number; pi: ParsedIngredient }[]][];
+		}
+
+		// Default: group by category
 		const groups = new Map<string, { idx: number; pi: ParsedIngredient }[]>();
-		data.parsedIngredients.forEach((pi: ParsedIngredient, idx: number) => {
+		indexed.forEach(({ idx, pi }: { idx: number; pi: ParsedIngredient }) => {
 			const cat = pi.foodCategory as string;
 			if (!groups.has(cat)) groups.set(cat, []);
 			groups.get(cat)!.push({ idx, pi });
@@ -163,6 +284,82 @@
 			<input type="hidden" name="cuisine" value={data.recipe.cuisine} />
 			<input type="hidden" name="image_url" value={data.recipe.image_url} />
 
+			<!-- Recipe Scaler -->
+			<div class="scaler-bar">
+				<span class="scaler-label">Scale Recipe</span>
+				<div class="scaler-presets">
+					{#each [0.5, 1, 1.5, 2, 3, 4] as preset}
+						<button
+							type="button"
+							class="scale-preset"
+							class:active={scaleFactor === preset && !scaleByIngredient}
+							onclick={() => { scaleByIngredient = false; scaleFactor = preset; }}
+						>{preset}x</button>
+					{/each}
+				</div>
+				<div class="scaler-custom">
+					<input
+						type="number"
+						min="0.25"
+						max="100"
+						step="0.25"
+						bind:value={scaleFactor}
+						class="scale-input"
+					/>
+					<span class="scale-x">x</span>
+				</div>
+				{#if scalableIngredients.length > 0}
+					<button
+						type="button"
+						class="scale-preset"
+						class:active={scaleByIngredient}
+						onclick={() => scaleByIngredient = !scaleByIngredient}
+					>By ingredient</button>
+				{/if}
+				{#if scaleFactor !== 1}
+					<button type="button" class="btn-ai-scale" disabled={isScaling} onclick={triggerAiScale}>
+						{isScaling ? 'Scaling...' : 'AI Scale'}
+					</button>
+					<button type="button" class="scale-reset" onclick={() => { scaleFactor = 1; scaleByIngredient = false; selectedIngredientIdx = -1; targetIngredientQty = ''; }}>Reset</button>
+				{/if}
+				{#if scaleFactor !== 1}
+					<span class="scale-status">
+						{#if aiScaleResult && aiScaleResult.factor === scaleFactor}
+							AI-scaled
+						{:else}
+							locally scaled
+						{/if}
+					</span>
+				{/if}
+			</div>
+			{#if scaleByIngredient && scalableIngredients.length > 0}
+				<div class="scale-by-ingredient">
+					<span class="scaler-label">Scale to:</span>
+					<input
+						type="number"
+						min="0.01"
+						step="0.25"
+						bind:value={targetIngredientQty}
+						oninput={updateFactorFromIngredient}
+						class="scale-input"
+						placeholder="qty"
+					/>
+					<select
+						class="ingredient-select"
+						bind:value={selectedIngredientIdx}
+						onchange={() => { if (targetIngredientQty) updateFactorFromIngredient(); }}
+					>
+						<option value={-1}>Choose ingredient...</option>
+						{#each scalableIngredients as { idx, pi }}
+							<option value={idx}>{pi.quantity} {pi.unit} {pi.name || pi.raw_text}</option>
+						{/each}
+					</select>
+					{#if scaleFactor !== 1 && selectedIngredientIdx >= 0}
+						<span class="scale-factor-display">= {scaleFactor.toFixed(2)}x</span>
+					{/if}
+				</div>
+			{/if}
+
 			<label class="field">
 				Description
 				<textarea name="description" rows="2" placeholder="Brief description...">{data.recipe.description}</textarea>
@@ -170,12 +367,15 @@
 
 			<div class="field">
 				<div class="field-header">
-					<span>Ingredients</span>
+					<span>Ingredients{#if scaleFactor !== 1} <span class="scale-badge">{scaleFactor}x</span>{/if}</span>
 					<button type="button" class="btn-add" onclick={addIngredient}>+ Add</button>
 				</div>
 				{#each ingredients as ingredient, i}
 					<div class="list-item">
 						<input type="text" name="ingredients" value={ingredient} placeholder="e.g. 2 cups flour" />
+						{#if scaleFactor !== 1 && displayIngredients[i] && displayIngredients[i] !== ingredient}
+							<span class="scaled-value" title="Scaled to {scaleFactor}x">{displayIngredients[i]}</span>
+						{/if}
 						<button type="button" class="btn-remove" onclick={() => removeIngredient(i)}>&times;</button>
 					</div>
 				{/each}
@@ -185,6 +385,12 @@
 				<div class="field">
 					<div class="field-header">
 						<span>Ingredient Breakdown</span>
+						<div class="sort-toggle">
+							<span class="sort-label">Sort:</span>
+							<button class="sort-btn" class:active={sortMode === 'category'} onclick={() => sortMode = 'category'}>Category</button>
+							<button class="sort-btn" class:active={sortMode === 'order-used'} onclick={() => sortMode = 'order-used'}>Order Used</button>
+							<button class="sort-btn" class:active={sortMode === 'original'} onclick={() => sortMode = 'original'}>Original</button>
+						</div>
 					</div>
 					<table class="ingredients-table">
 						<thead>
@@ -201,8 +407,12 @@
 							{#each groupedIngredients() as [category, items]}
 								<tr class="category-header-row">
 									<td colspan="6">
-										<span class="category-dot" style="background: {CATEGORY_COLORS[category as IngredientCategory] ?? '#757575'}"></span>
-										{CATEGORY_LABELS[category as IngredientCategory] ?? category}
+										{#if CATEGORY_COLORS[category as IngredientCategory]}
+											<span class="category-dot" style="background: {CATEGORY_COLORS[category as IngredientCategory]}"></span>
+											{CATEGORY_LABELS[category as IngredientCategory]}
+										{:else}
+											{category}
+										{/if}
 										<span class="category-count">({items.length})</span>
 									</td>
 								</tr>
@@ -278,13 +488,18 @@
 
 			<div class="field">
 				<div class="field-header">
-					<span>Instructions</span>
+					<span>Instructions{#if scaleFactor !== 1} <span class="scale-badge">{scaleFactor}x</span>{/if}</span>
 					<button type="button" class="btn-add" onclick={addInstruction}>+ Add</button>
 				</div>
 				{#each instructions as instruction, i}
 					<div class="list-item">
 						<span class="step-num">{i + 1}.</span>
-						<textarea name="instructions" rows="2" placeholder="Describe this step...">{instruction}</textarea>
+						<div class="instruction-wrapper">
+							<textarea name="instructions" rows="2" placeholder="Describe this step...">{instruction}</textarea>
+							{#if scaleFactor !== 1 && displayInstructions[i] && displayInstructions[i] !== instruction}
+								<div class="scaled-instruction">{displayInstructions[i]}</div>
+							{/if}
+						</div>
 						<button type="button" class="btn-remove" onclick={() => removeInstruction(i)}>&times;</button>
 					</div>
 				{/each}
@@ -551,6 +766,205 @@
 	.unmatched {
 		color: #999;
 		font-style: italic;
+	}
+
+	/* Scaler */
+	.scaler-bar {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		padding: 0.75rem 1rem;
+		background: #f5f5f5;
+		border: 1px solid #e0e0e0;
+		border-radius: 6px;
+		margin-bottom: 1.5rem;
+		flex-wrap: wrap;
+	}
+
+	.scaler-label {
+		font-weight: 600;
+		font-size: 0.85rem;
+		color: #555;
+	}
+
+	.scaler-presets {
+		display: flex;
+		gap: 0.25rem;
+	}
+
+	.scale-preset {
+		background: #fff;
+		border: 1px solid #ccc;
+		padding: 0.2rem 0.5rem;
+		border-radius: 3px;
+		cursor: pointer;
+		font-size: 0.8rem;
+		font-weight: 500;
+	}
+
+	.scale-preset:hover { background: #f0f0f0; }
+
+	.scale-preset.active {
+		background: #e65100;
+		color: #fff;
+		border-color: #e65100;
+	}
+
+	.scaler-custom {
+		display: flex;
+		align-items: center;
+		gap: 0.2rem;
+	}
+
+	.scale-input {
+		width: 4rem;
+		padding: 0.2rem 0.4rem;
+		border: 1px solid #ccc;
+		border-radius: 3px;
+		font-size: 0.85rem;
+		text-align: center;
+	}
+
+	.scale-x {
+		font-size: 0.8rem;
+		color: #888;
+		font-weight: 600;
+	}
+
+	.scale-by-ingredient {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		padding: 0.5rem 1rem;
+		background: #fafafa;
+		border: 1px solid #e0e0e0;
+		border-top: none;
+		border-radius: 0 0 6px 6px;
+		margin-bottom: 1.5rem;
+		margin-top: -1.5rem;
+		flex-wrap: wrap;
+	}
+
+	.ingredient-select {
+		padding: 0.25rem 0.4rem;
+		border: 1px solid #ccc;
+		border-radius: 3px;
+		font-size: 0.85rem;
+		max-width: 300px;
+	}
+
+	.scale-factor-display {
+		font-size: 0.8rem;
+		color: #e65100;
+		font-weight: 600;
+	}
+
+	.btn-ai-scale {
+		background: #1565c0;
+		color: white;
+		border: none;
+		padding: 0.25rem 0.6rem;
+		border-radius: 3px;
+		cursor: pointer;
+		font-size: 0.8rem;
+		font-weight: 600;
+	}
+
+	.btn-ai-scale:hover { background: #0d47a1; }
+	.btn-ai-scale:disabled { opacity: 0.5; cursor: not-allowed; }
+
+	.scale-reset {
+		background: none;
+		border: 1px solid #ccc;
+		padding: 0.2rem 0.5rem;
+		border-radius: 3px;
+		cursor: pointer;
+		font-size: 0.75rem;
+		color: #888;
+	}
+
+	.scale-reset:hover { background: #fff; }
+
+	.scale-status {
+		font-size: 0.7rem;
+		color: #888;
+		font-style: italic;
+	}
+
+	.scale-badge {
+		display: inline-block;
+		font-size: 0.7rem;
+		background: #e65100;
+		color: #fff;
+		padding: 0.05rem 0.35rem;
+		border-radius: 3px;
+		font-weight: 600;
+		vertical-align: middle;
+		margin-left: 0.3rem;
+	}
+
+	.scaled-value {
+		font-size: 0.8rem;
+		color: #e65100;
+		font-weight: 600;
+		white-space: nowrap;
+		min-width: 120px;
+		padding: 0.3rem 0.5rem;
+		background: #fff3e0;
+		border-radius: 3px;
+		border: 1px solid #ffcc80;
+	}
+
+	.instruction-wrapper {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		gap: 0.3rem;
+	}
+
+	.instruction-wrapper textarea {
+		width: 100%;
+	}
+
+	.scaled-instruction {
+		font-size: 0.82rem;
+		color: #e65100;
+		background: #fff3e0;
+		padding: 0.4rem 0.5rem;
+		border-radius: 3px;
+		border: 1px solid #ffcc80;
+		line-height: 1.35;
+	}
+
+	/* Sort toggle */
+	.sort-toggle {
+		display: flex;
+		align-items: center;
+		gap: 0.3rem;
+	}
+
+	.sort-label {
+		font-size: 0.75rem;
+		color: #888;
+		font-weight: 500;
+	}
+
+	.sort-btn {
+		background: #fff;
+		border: 1px solid #ccc;
+		padding: 0.15rem 0.5rem;
+		border-radius: 3px;
+		cursor: pointer;
+		font-size: 0.7rem;
+		font-weight: 500;
+		color: #666;
+	}
+
+	.sort-btn:hover { background: #f5f5f5; }
+	.sort-btn.active {
+		background: #e65100;
+		color: #fff;
+		border-color: #e65100;
 	}
 
 	/* Category styles */
