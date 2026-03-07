@@ -1,5 +1,8 @@
 <script lang="ts">
 	import type { PageData, ActionData } from './$types';
+	import { formatSubAmount } from '$lib/substitutions';
+	import { CATEGORY_LABELS, CATEGORY_COLORS, CATEGORY_ORDER } from '$lib/ingredient-categories';
+	import type { IngredientCategory } from '$lib/ingredient-categories';
 
 	let { data, form } = $props<{ data: PageData; form: ActionData }>();
 
@@ -36,6 +39,25 @@
 	let allEquipment = $derived([...new Set(data.timelineSteps.flatMap((s: { equipment: string[] }) => s.equipment))]);
 	let allTechniques = $derived([...new Set(data.timelineSteps.flatMap((s: { techniques: string[] }) => s.techniques))]);
 	let maxDuration = $derived(Math.max(...data.timelineSteps.map((s: { duration_minutes: number }) => s.duration_minutes), 1));
+
+	// Group ingredients by food category
+	type ParsedIngredient = typeof data.parsedIngredients[0];
+	let groupedIngredients = $derived(() => {
+		const groups = new Map<string, { idx: number; pi: ParsedIngredient }[]>();
+		data.parsedIngredients.forEach((pi: ParsedIngredient, idx: number) => {
+			const cat = pi.foodCategory as string;
+			if (!groups.has(cat)) groups.set(cat, []);
+			groups.get(cat)!.push({ idx, pi });
+		});
+		const sorted: [string, { idx: number; pi: ParsedIngredient }[]][] = [];
+		for (const cat of CATEGORY_ORDER) {
+			if (groups.has(cat)) sorted.push([cat, groups.get(cat)!]);
+		}
+		for (const [cat, items] of groups) {
+			if (!sorted.find(([c]) => c === cat)) sorted.push([cat, items]);
+		}
+		return sorted;
+	});
 
 	// Substitution panel state
 	let expandedIngredient = $state<number | null>(null);
@@ -167,6 +189,7 @@
 					<table class="ingredients-table">
 						<thead>
 							<tr>
+								<th>Category</th>
 								<th>Qty</th>
 								<th>Unit</th>
 								<th>Ingredient</th>
@@ -175,60 +198,78 @@
 							</tr>
 						</thead>
 						<tbody>
-							{#each data.parsedIngredients as pi, idx}
-								<tr
-									class:has-subs={pi.substitutions.length > 0}
-									class:expanded={expandedIngredient === idx}
-									onclick={() => { if (pi.substitutions.length > 0) toggleSubstitutions(idx); }}
-								>
-									<td>{pi.quantity != null ? pi.quantity : '—'}</td>
-									<td>{pi.unit || '—'}</td>
-									<td>
-										<span class="ingredient-name">
-											{pi.name || pi.raw_text}
-											{#if pi.substitutions.length > 0}
-												<span class="sub-indicator" title="Click to see substitutions">
-													{expandedIngredient === idx ? '▾' : '▸'} {pi.substitutions.length}
-												</span>
-											{/if}
-										</span>
-									</td>
-									<td>
-										{#if pi.known_name}
-											<span class="matched">{pi.known_name}</span>
-										{:else}
-											<span class="unmatched">unmatched</span>
-										{/if}
-									</td>
-									<td>
-										{#if pi.density_g_per_cup != null}
-											{pi.density_g_per_cup}{#if pi.user_override} <span class="override-badge">custom</span>{/if}
-										{:else}
-											—
-										{/if}
+							{#each groupedIngredients() as [category, items]}
+								<tr class="category-header-row">
+									<td colspan="6">
+										<span class="category-dot" style="background: {CATEGORY_COLORS[category as IngredientCategory] ?? '#757575'}"></span>
+										{CATEGORY_LABELS[category as IngredientCategory] ?? category}
+										<span class="category-count">({items.length})</span>
 									</td>
 								</tr>
-								{#if expandedIngredient === idx && pi.substitutions.length > 0}
-									<tr class="sub-row">
-										<td colspan="5">
-											<div class="sub-panel">
-												<div class="sub-panel-header">Substitutions for <strong>{pi.known_name || pi.name}</strong></div>
-												<div class="sub-list">
-													{#each pi.substitutions as sub}
-														<div class="sub-card" class:sub-direct={sub.category === 'direct'} class:sub-dietary={sub.category === 'dietary'} class:sub-emergency={sub.category === 'emergency'}>
-															<div class="sub-card-top">
-																<span class="sub-name">{sub.name}</span>
-																<span class="sub-cat-badge">{sub.category}</span>
-															</div>
-															<div class="sub-ratio">{sub.ratio}</div>
-															<div class="sub-notes">{sub.notes}</div>
-														</div>
-													{/each}
-												</div>
-											</div>
+								{#each items as { idx, pi }}
+									<tr
+										class:has-subs={pi.substitutions.length > 0}
+										class:expanded={expandedIngredient === idx}
+										onclick={() => { if (pi.substitutions.length > 0) toggleSubstitutions(idx); }}
+									>
+										<td>
+											<span class="cat-badge" style="background: {CATEGORY_COLORS[pi.foodCategory as IngredientCategory] ?? '#757575'}">{CATEGORY_LABELS[pi.foodCategory as IngredientCategory] ?? pi.foodCategory}</span>
+										</td>
+										<td>{pi.quantity != null ? pi.quantity : '—'}</td>
+										<td>{pi.unit || '—'}</td>
+										<td>
+											<span class="ingredient-name">
+												{pi.name || pi.raw_text}
+												{#if pi.substitutions.length > 0}
+													<span class="sub-indicator" title="Click to see substitutions">
+														{expandedIngredient === idx ? '▾' : '▸'} {pi.substitutions.length}
+													</span>
+												{/if}
+											</span>
+										</td>
+										<td>
+											{#if pi.known_name}
+												<span class="matched">{pi.known_name}</span>
+											{:else}
+												<span class="unmatched">unmatched</span>
+											{/if}
+										</td>
+										<td>
+											{#if pi.density_g_per_cup != null}
+												{pi.density_g_per_cup}{#if pi.user_override} <span class="override-badge">custom</span>{/if}
+											{:else}
+												—
+											{/if}
 										</td>
 									</tr>
-								{/if}
+									{#if expandedIngredient === idx && pi.substitutions.length > 0}
+										<tr class="sub-row">
+											<td colspan="6">
+												<div class="sub-panel">
+													<div class="sub-panel-header">Substitutions for <strong>{pi.known_name || pi.name}</strong></div>
+													<div class="sub-list">
+														{#each pi.substitutions as sub}
+															{@const amount = formatSubAmount(pi.quantity, pi.unit, sub)}
+															<div class="sub-card" class:sub-direct={sub.category === 'direct'} class:sub-dietary={sub.category === 'dietary'} class:sub-emergency={sub.category === 'emergency'}>
+																<div class="sub-card-top">
+																	<span class="sub-name">{sub.name}</span>
+																	<span class="sub-cat-badge">{sub.category}</span>
+																</div>
+																{#if amount}
+																	<div class="sub-amount">{amount}</div>
+																{/if}
+																{#if sub.ratioNote && !amount.includes(sub.name)}
+																	<div class="sub-ratio-note">{sub.ratioNote}</div>
+																{/if}
+																<div class="sub-notes">{sub.notes}</div>
+															</div>
+														{/each}
+													</div>
+												</div>
+											</td>
+										</tr>
+									{/if}
+								{/each}
 							{/each}
 						</tbody>
 					</table>
@@ -512,6 +553,45 @@
 		font-style: italic;
 	}
 
+	/* Category styles */
+	.category-header-row td {
+		padding: 0.5rem 0.75rem 0.3rem;
+		font-weight: 700;
+		font-size: 0.8rem;
+		color: #333;
+		background: #fafafa;
+		border-bottom: 1px solid #e0e0e0;
+		border-top: 1px solid #e0e0e0;
+	}
+
+	.category-dot {
+		display: inline-block;
+		width: 8px;
+		height: 8px;
+		border-radius: 50%;
+		margin-right: 0.3rem;
+		vertical-align: middle;
+	}
+
+	.category-count {
+		font-weight: 400;
+		color: #999;
+		font-size: 0.75rem;
+		margin-left: 0.2rem;
+	}
+
+	.cat-badge {
+		display: inline-block;
+		font-size: 0.6rem;
+		color: #fff;
+		padding: 0.1rem 0.35rem;
+		border-radius: 3px;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.03em;
+		white-space: nowrap;
+	}
+
 	/* Substitution styles */
 	.ingredients-table tr.has-subs {
 		cursor: pointer;
@@ -625,11 +705,23 @@
 		color: #e65100;
 	}
 
-	.sub-ratio {
+	.sub-amount {
+		font-weight: 600;
+		color: #333;
+		font-size: 0.85rem;
+		margin-bottom: 0.15rem;
+		background: #f5f5f5;
+		padding: 0.2rem 0.4rem;
+		border-radius: 3px;
+		display: inline-block;
+	}
+
+	.sub-ratio-note {
 		font-weight: 500;
 		color: #555;
 		font-size: 0.78rem;
 		margin-bottom: 0.15rem;
+		font-style: italic;
 	}
 
 	.sub-notes {

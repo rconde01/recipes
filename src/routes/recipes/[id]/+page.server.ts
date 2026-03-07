@@ -8,7 +8,8 @@ import type { RecipeExtras } from '$lib/server/db';
 import { parseAndMatchIngredient } from '$lib/server/ingredient-parser';
 import { analyzeStepsSmart } from '$lib/server/step-analyzer';
 import { getSubstitutions } from '$lib/substitutions';
-import type { Substitution } from '$lib/substitutions';
+import { categorizeIngredient, mapDbCategory } from '$lib/ingredient-categories';
+import type { IngredientCategory } from '$lib/ingredient-categories';
 import type { PageServerLoad, Actions } from './$types';
 
 export const load: PageServerLoad = async ({ locals, params }) => {
@@ -54,6 +55,16 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			const subLookupName = known_name ?? ri.name;
 			const substitutions = subLookupName ? getSubstitutions(subLookupName) : [];
 
+			// Categorize: use DB category if matched, otherwise infer from name
+			let foodCategory: IngredientCategory = 'other';
+			if (ri.known_ingredient_id && knownMap[ri.known_ingredient_id]) {
+				foodCategory = mapDbCategory(knownMap[ri.known_ingredient_id].category);
+			}
+			// If DB gave us 'other' or ingredient wasn't matched, try name-based categorization
+			if (foodCategory === 'other') {
+				foodCategory = categorizeIngredient(ri.name || ri.raw_text);
+			}
+
 			return {
 				raw_text: ri.raw_text,
 				quantity: ri.quantity,
@@ -63,7 +74,8 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 				known_name,
 				density_g_per_cup,
 				user_override,
-				substitutions
+				substitutions,
+				foodCategory
 			};
 		})
 	);
