@@ -1,11 +1,12 @@
 import { redirect, fail, error } from '@sveltejs/kit';
 import {
 	getRecipesByUser, getRecipeById, updateRecipe, deleteRecipe,
-	getRecipeIngredients, setRecipeIngredients, getAllKnownIngredients,
-	getUserIngredientOverride
+	getRecipeIngredients, setRecipeIngredients, getRecipeSteps, setRecipeSteps,
+	getAllKnownIngredients, getUserIngredientOverride
 } from '$lib/server/db';
 import type { RecipeExtras } from '$lib/server/db';
 import { parseAndMatchIngredient } from '$lib/server/ingredient-parser';
+import { analyzeStepsSmart } from '$lib/server/step-analyzer';
 import type { PageServerLoad, Actions } from './$types';
 
 export const load: PageServerLoad = async ({ locals, params }) => {
@@ -18,10 +19,11 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		error(404, 'Recipe not found');
 	}
 
-	const [recipes, recipeIngredients, knownIngredients] = await Promise.all([
+	const [recipes, recipeIngredients, knownIngredients, recipeSteps] = await Promise.all([
 		getRecipesByUser(locals.user.id),
 		getRecipeIngredients(params.id),
-		getAllKnownIngredients()
+		getAllKnownIngredients(),
+		getRecipeSteps(params.id)
 	]);
 
 	// Build a map of known ingredient id -> name + density
@@ -59,6 +61,17 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		})
 	);
 
+	// Parse step data
+	const timelineSteps = recipeSteps.map((step) => ({
+		position: step.position,
+		raw_text: step.raw_text,
+		duration_minutes: step.duration_minutes,
+		is_passive: step.is_passive === 1,
+		equipment: JSON.parse(step.equipment) as string[],
+		ingredients: JSON.parse(step.ingredients) as string[],
+		techniques: JSON.parse(step.techniques) as string[],
+	}));
+
 	return {
 		recipe: {
 			...recipe,
@@ -66,7 +79,8 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			instructions: JSON.parse(recipe.instructions) as string[]
 		},
 		recipes,
-		parsedIngredients: enrichedIngredients
+		parsedIngredients: enrichedIngredients,
+		timelineSteps
 	} as const;
 };
 
@@ -107,6 +121,10 @@ export const actions: Actions = {
 			ingredients.map((raw) => parseAndMatchIngredient(raw))
 		);
 		await setRecipeIngredients(params.id, parsedIngredients);
+
+		// Re-analyze steps for timeline
+		const analyzedSteps = await analyzeStepsSmart(instructions, ingredients);
+		await setRecipeSteps(params.id, analyzedSteps);
 
 		return { success: true };
 	},

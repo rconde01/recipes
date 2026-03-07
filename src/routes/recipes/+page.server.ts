@@ -1,7 +1,8 @@
 import { redirect, fail } from '@sveltejs/kit';
-import { getRecipesByUser, createRecipe, deleteRecipe, setRecipeIngredients } from '$lib/server/db';
+import { getRecipesByUser, createRecipe, deleteRecipe, setRecipeIngredients, setRecipeSteps } from '$lib/server/db';
 import { parseRecipeFromUrl } from '$lib/server/recipe-parser';
 import { parseAndMatchIngredient } from '$lib/server/ingredient-parser';
+import { analyzeStepsSmart } from '$lib/server/step-analyzer';
 import type { PageServerLoad, Actions } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -80,6 +81,10 @@ export const actions: Actions = {
 				parsed.ingredients.map((raw) => parseAndMatchIngredient(raw))
 			);
 			await setRecipeIngredients(recipe.id, parsedIngredients);
+
+			// Analyze steps for timeline
+			const analyzedSteps = await analyzeStepsSmart(parsed.instructions, parsed.ingredients);
+			await setRecipeSteps(recipe.id, analyzedSteps);
 
 			redirect(303, `/recipes/${recipe.id}`);
 		} catch (err) {

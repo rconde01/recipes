@@ -29,6 +29,23 @@
 		instructions = instructions.filter((_, i) => i !== index);
 		if (instructions.length === 0) instructions = [''];
 	}
+
+	let totalMinutes = $derived(data.timelineSteps.reduce((sum: number, s: { duration_minutes: number }) => sum + s.duration_minutes, 0));
+	let activeMinutes = $derived(data.timelineSteps.filter((s: { is_passive: boolean }) => !s.is_passive).reduce((sum: number, s: { duration_minutes: number }) => sum + s.duration_minutes, 0));
+	let passiveMinutes = $derived(totalMinutes - activeMinutes);
+	let allEquipment = $derived([...new Set(data.timelineSteps.flatMap((s: { equipment: string[] }) => s.equipment))]);
+	let allTechniques = $derived([...new Set(data.timelineSteps.flatMap((s: { techniques: string[] }) => s.techniques))]);
+	let maxDuration = $derived(Math.max(...data.timelineSteps.map((s: { duration_minutes: number }) => s.duration_minutes), 1));
+
+	function formatDuration(minutes: number): string {
+		if (minutes === 0) return '0 min';
+		if (minutes < 1) return `${Math.round(minutes * 60)} sec`;
+		if (minutes < 60) return `${Math.round(minutes)} min`;
+		const h = Math.floor(minutes / 60);
+		const m = Math.round(minutes % 60);
+		if (m === 0) return `${h}h`;
+		return `${h}h ${m}m`;
+	}
 </script>
 
 <svelte:head>
@@ -191,6 +208,85 @@
 				{/each}
 			</div>
 		</form>
+
+		{#if data.timelineSteps.length > 0}
+
+			<div class="timeline-section">
+				<h3>Recipe Timeline</h3>
+
+				<div class="timeline-summary">
+					<div class="summary-item">
+						<span class="summary-label">Total</span>
+						<span class="summary-value">{formatDuration(totalMinutes)}</span>
+					</div>
+					<div class="summary-item">
+						<span class="summary-label">Active</span>
+						<span class="summary-value active-text">{formatDuration(activeMinutes)}</span>
+					</div>
+					<div class="summary-item">
+						<span class="summary-label">Passive</span>
+						<span class="summary-value passive-text">{formatDuration(passiveMinutes)}</span>
+					</div>
+					{#if allEquipment.length > 0}
+						<div class="summary-item wide">
+							<span class="summary-label">Equipment</span>
+							<span class="summary-value">{allEquipment.join(', ')}</span>
+						</div>
+					{/if}
+					{#if allTechniques.length > 0}
+						<div class="summary-item wide">
+							<span class="summary-label">Techniques</span>
+							<span class="summary-value">{allTechniques.join(', ')}</span>
+						</div>
+					{/if}
+				</div>
+
+				<div class="timeline-chart">
+					{#each data.timelineSteps as step, i}
+						{@const barWidth = step.duration_minutes > 0 ? Math.max((step.duration_minutes / maxDuration) * 100, 8) : 8}
+						<div class="timeline-row">
+							<div class="timeline-step-num">{i + 1}</div>
+							<div class="timeline-bar-container">
+								<div
+									class="timeline-bar"
+									class:passive={step.is_passive}
+									style="width: {barWidth}%"
+								>
+									<span class="bar-label">
+										{#if step.duration_minutes > 0}
+											{formatDuration(step.duration_minutes)}
+										{:else}
+											—
+										{/if}
+									</span>
+								</div>
+								<div class="timeline-details">
+									<p class="step-text">{step.raw_text.length > 100 ? step.raw_text.slice(0, 100) + '...' : step.raw_text}</p>
+									<div class="step-tags">
+										{#if step.is_passive}
+											<span class="tag tag-passive">passive</span>
+										{:else}
+											<span class="tag tag-active">active</span>
+										{/if}
+										{#each step.equipment as eq}
+											<span class="tag tag-equipment">{eq}</span>
+										{/each}
+										{#each step.techniques as tech}
+											<span class="tag tag-technique">{tech}</span>
+										{/each}
+									</div>
+								</div>
+							</div>
+						</div>
+					{/each}
+				</div>
+
+				<div class="timeline-legend">
+					<span class="legend-item"><span class="legend-swatch active-swatch"></span> Active (hands-on)</span>
+					<span class="legend-item"><span class="legend-swatch passive-swatch"></span> Passive (waiting)</span>
+				</div>
+			</div>
+		{/if}
 	</section>
 </div>
 
@@ -505,4 +601,172 @@
 		padding: 0.7rem;
 		border-radius: 4px;
 	}
+
+	/* Timeline */
+	.timeline-section {
+		margin-top: 2rem;
+		padding-top: 1.5rem;
+		border-top: 2px solid #e0e0e0;
+	}
+
+	.timeline-section h3 {
+		margin: 0 0 1rem 0;
+		font-size: 1.1rem;
+	}
+
+	.timeline-summary {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 1rem;
+		margin-bottom: 1.5rem;
+		padding: 1rem;
+		background: #fafafa;
+		border-radius: 8px;
+		border: 1px solid #e0e0e0;
+	}
+
+	.summary-item {
+		display: flex;
+		flex-direction: column;
+		gap: 0.2rem;
+	}
+
+	.summary-item.wide {
+		flex-basis: 100%;
+	}
+
+	.summary-label {
+		font-size: 0.75rem;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		color: #888;
+		font-weight: 600;
+	}
+
+	.summary-value {
+		font-size: 0.95rem;
+		font-weight: 500;
+	}
+
+	.active-text { color: #e65100; }
+	.passive-text { color: #1565c0; }
+
+	.timeline-chart {
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+	}
+
+	.timeline-row {
+		display: flex;
+		gap: 0.75rem;
+		align-items: flex-start;
+	}
+
+	.timeline-step-num {
+		min-width: 1.5rem;
+		font-weight: 700;
+		color: #999;
+		padding-top: 0.35rem;
+		text-align: right;
+	}
+
+	.timeline-bar-container {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		gap: 0.3rem;
+	}
+
+	.timeline-bar {
+		height: 28px;
+		background: #e65100;
+		border-radius: 4px;
+		display: flex;
+		align-items: center;
+		padding: 0 0.5rem;
+		min-width: 60px;
+		transition: width 0.3s ease;
+	}
+
+	.timeline-bar.passive {
+		background: #90caf9;
+	}
+
+	.bar-label {
+		color: white;
+		font-size: 0.8rem;
+		font-weight: 600;
+		white-space: nowrap;
+	}
+
+	.timeline-details {
+		padding-left: 0.25rem;
+	}
+
+	.step-text {
+		margin: 0;
+		font-size: 0.85rem;
+		color: #555;
+		line-height: 1.3;
+	}
+
+	.step-tags {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.3rem;
+		margin-top: 0.3rem;
+	}
+
+	.tag {
+		display: inline-block;
+		font-size: 0.7rem;
+		padding: 0.1rem 0.4rem;
+		border-radius: 3px;
+		font-weight: 500;
+	}
+
+	.tag-active {
+		background: #fff3e0;
+		color: #e65100;
+	}
+
+	.tag-passive {
+		background: #e3f2fd;
+		color: #1565c0;
+	}
+
+	.tag-equipment {
+		background: #f3e5f5;
+		color: #7b1fa2;
+	}
+
+	.tag-technique {
+		background: #e8f5e9;
+		color: #2e7d32;
+	}
+
+	.timeline-legend {
+		display: flex;
+		gap: 1.5rem;
+		margin-top: 1rem;
+		font-size: 0.8rem;
+		color: #888;
+	}
+
+	.legend-item {
+		display: flex;
+		align-items: center;
+		gap: 0.3rem;
+	}
+
+	.legend-swatch {
+		display: inline-block;
+		width: 14px;
+		height: 14px;
+		border-radius: 3px;
+	}
+
+	.active-swatch { background: #e65100; }
+	.passive-swatch { background: #90caf9; }
 </style>

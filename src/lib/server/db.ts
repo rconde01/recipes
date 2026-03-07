@@ -88,6 +88,18 @@ export async function initDb() {
 			name TEXT NOT NULL DEFAULT '',
 			known_ingredient_id TEXT REFERENCES known_ingredients(id) ON DELETE SET NULL,
 			created_at TEXT NOT NULL DEFAULT (datetime('now'))
+		)`,
+		`CREATE TABLE IF NOT EXISTS recipe_steps (
+			id TEXT PRIMARY KEY,
+			recipe_id TEXT NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
+			position INTEGER NOT NULL DEFAULT 0,
+			raw_text TEXT NOT NULL,
+			duration_minutes REAL NOT NULL DEFAULT 0,
+			is_passive INTEGER NOT NULL DEFAULT 0,
+			equipment TEXT NOT NULL DEFAULT '[]',
+			ingredients TEXT NOT NULL DEFAULT '[]',
+			techniques TEXT NOT NULL DEFAULT '[]',
+			created_at TEXT NOT NULL DEFAULT (datetime('now'))
 		)`
 	]);
 
@@ -461,6 +473,55 @@ export async function seedKnownIngredients(): Promise<void> {
 		await db.execute({
 			sql: 'INSERT OR IGNORE INTO known_ingredients (id, canonical_name, category, density_g_per_cup) VALUES (?, ?, ?, ?)',
 			args: [crypto.randomUUID(), d.name, d.category, d.density]
+		});
+	}
+}
+
+// Recipe Steps
+
+export interface RecipeStep {
+	id: string;
+	recipe_id: string;
+	position: number;
+	raw_text: string;
+	duration_minutes: number;
+	is_passive: number; // 0 = active, 1 = passive
+	equipment: string; // JSON array
+	ingredients: string; // JSON array
+	techniques: string; // JSON array
+	created_at: string;
+}
+
+export async function getRecipeSteps(recipeId: string): Promise<RecipeStep[]> {
+	const result = await db.execute({
+		sql: 'SELECT * FROM recipe_steps WHERE recipe_id = ? ORDER BY position',
+		args: [recipeId]
+	});
+	return result.rows as unknown as RecipeStep[];
+}
+
+export async function setRecipeSteps(
+	recipeId: string,
+	steps: {
+		raw_text: string;
+		duration_minutes: number;
+		is_passive: boolean;
+		equipment: string[];
+		ingredients: string[];
+		techniques: string[];
+	}[]
+): Promise<void> {
+	await db.execute({ sql: 'DELETE FROM recipe_steps WHERE recipe_id = ?', args: [recipeId] });
+	for (let i = 0; i < steps.length; i++) {
+		const step = steps[i];
+		await db.execute({
+			sql: `INSERT INTO recipe_steps (id, recipe_id, position, raw_text, duration_minutes, is_passive, equipment, ingredients, techniques)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			args: [
+				crypto.randomUUID(), recipeId, i, step.raw_text,
+				step.duration_minutes, step.is_passive ? 1 : 0,
+				JSON.stringify(step.equipment), JSON.stringify(step.ingredients), JSON.stringify(step.techniques)
+			]
 		});
 	}
 }
