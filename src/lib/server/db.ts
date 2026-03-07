@@ -60,6 +60,34 @@ export async function initDb() {
 			image_url TEXT NOT NULL DEFAULT '',
 			created_at TEXT NOT NULL DEFAULT (datetime('now')),
 			updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+		)`,
+		`CREATE TABLE IF NOT EXISTS known_ingredients (
+			id TEXT PRIMARY KEY,
+			canonical_name TEXT UNIQUE NOT NULL,
+			category TEXT NOT NULL DEFAULT '',
+			density_g_per_cup REAL,
+			created_at TEXT NOT NULL DEFAULT (datetime('now'))
+		)`,
+		`CREATE TABLE IF NOT EXISTS user_ingredient_overrides (
+			id TEXT PRIMARY KEY,
+			user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			known_ingredient_id TEXT NOT NULL REFERENCES known_ingredients(id) ON DELETE CASCADE,
+			brand TEXT NOT NULL DEFAULT '',
+			density_g_per_cup REAL,
+			notes TEXT NOT NULL DEFAULT '',
+			created_at TEXT NOT NULL DEFAULT (datetime('now')),
+			UNIQUE(user_id, known_ingredient_id)
+		)`,
+		`CREATE TABLE IF NOT EXISTS recipe_ingredients (
+			id TEXT PRIMARY KEY,
+			recipe_id TEXT NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
+			position INTEGER NOT NULL DEFAULT 0,
+			raw_text TEXT NOT NULL,
+			quantity REAL,
+			unit TEXT NOT NULL DEFAULT '',
+			name TEXT NOT NULL DEFAULT '',
+			known_ingredient_id TEXT REFERENCES known_ingredients(id) ON DELETE SET NULL,
+			created_at TEXT NOT NULL DEFAULT (datetime('now'))
 		)`
 	]);
 
@@ -71,6 +99,8 @@ export async function initDb() {
 			// Column already exists, ignore
 		}
 	}
+
+	await seedKnownIngredients();
 }
 
 function hashPassword(password: string, salt: string): string {
@@ -268,4 +298,169 @@ export async function deleteRecipe(id: string, userId: string): Promise<boolean>
 		args: [id, userId]
 	});
 	return result.rowsAffected > 0;
+}
+
+// Known Ingredients
+
+export interface KnownIngredient {
+	id: string;
+	canonical_name: string;
+	category: string;
+	density_g_per_cup: number | null;
+	created_at: string;
+}
+
+export interface UserIngredientOverride {
+	id: string;
+	user_id: string;
+	known_ingredient_id: string;
+	brand: string;
+	density_g_per_cup: number | null;
+	notes: string;
+	created_at: string;
+}
+
+export interface RecipeIngredient {
+	id: string;
+	recipe_id: string;
+	position: number;
+	raw_text: string;
+	quantity: number | null;
+	unit: string;
+	name: string;
+	known_ingredient_id: string | null;
+	created_at: string;
+}
+
+export async function getAllKnownIngredients(): Promise<KnownIngredient[]> {
+	const result = await db.execute('SELECT * FROM known_ingredients ORDER BY canonical_name');
+	return result.rows as unknown as KnownIngredient[];
+}
+
+export async function getKnownIngredientByName(name: string): Promise<KnownIngredient | undefined> {
+	const result = await db.execute({
+		sql: 'SELECT * FROM known_ingredients WHERE canonical_name = ?',
+		args: [name.toLowerCase()]
+	});
+	return result.rows[0] as unknown as KnownIngredient | undefined;
+}
+
+export async function findKnownIngredientByName(name: string): Promise<KnownIngredient | undefined> {
+	// Exact match first
+	const exact = await getKnownIngredientByName(name);
+	if (exact) return exact;
+
+	// Substring match: ingredient name contains or is contained by a known name
+	const normalized = name.toLowerCase();
+	const result = await db.execute({
+		sql: `SELECT * FROM known_ingredients
+			WHERE ? LIKE '%' || canonical_name || '%'
+			   OR canonical_name LIKE '%' || ? || '%'
+			ORDER BY LENGTH(canonical_name) DESC LIMIT 1`,
+		args: [normalized, normalized]
+	});
+	return result.rows[0] as unknown as KnownIngredient | undefined;
+}
+
+export async function createKnownIngredient(
+	canonicalName: string,
+	category: string,
+	densityGPerCup: number | null
+): Promise<KnownIngredient> {
+	const id = crypto.randomUUID();
+	const now = new Date().toISOString();
+	await db.execute({
+		sql: 'INSERT OR IGNORE INTO known_ingredients (id, canonical_name, category, density_g_per_cup, created_at) VALUES (?, ?, ?, ?, ?)',
+		args: [id, canonicalName.toLowerCase(), category, densityGPerCup, now]
+	});
+	return { id, canonical_name: canonicalName.toLowerCase(), category, density_g_per_cup: densityGPerCup, created_at: now };
+}
+
+export async function getRecipeIngredients(recipeId: string): Promise<RecipeIngredient[]> {
+	const result = await db.execute({
+		sql: 'SELECT * FROM recipe_ingredients WHERE recipe_id = ? ORDER BY position',
+		args: [recipeId]
+	});
+	return result.rows as unknown as RecipeIngredient[];
+}
+
+export async function setRecipeIngredients(
+	recipeId: string,
+	items: { raw_text: string; quantity: number | null; unit: string; name: string; known_ingredient_id: string | null }[]
+): Promise<void> {
+	await db.execute({ sql: 'DELETE FROM recipe_ingredients WHERE recipe_id = ?', args: [recipeId] });
+	for (let i = 0; i < items.length; i++) {
+		const item = items[i];
+		await db.execute({
+			sql: 'INSERT INTO recipe_ingredients (id, recipe_id, position, raw_text, quantity, unit, name, known_ingredient_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+			args: [crypto.randomUUID(), recipeId, i, item.raw_text, item.quantity, item.unit, item.name, item.known_ingredient_id]
+		});
+	}
+}
+
+export async function getUserIngredientOverride(
+	userId: string,
+	knownIngredientId: string
+): Promise<UserIngredientOverride | undefined> {
+	const result = await db.execute({
+		sql: 'SELECT * FROM user_ingredient_overrides WHERE user_id = ? AND known_ingredient_id = ?',
+		args: [userId, knownIngredientId]
+	});
+	return result.rows[0] as unknown as UserIngredientOverride | undefined;
+}
+
+export async function setUserIngredientOverride(
+	userId: string,
+	knownIngredientId: string,
+	brand: string,
+	densityGPerCup: number | null,
+	notes: string
+): Promise<void> {
+	const id = crypto.randomUUID();
+	await db.execute({
+		sql: `INSERT INTO user_ingredient_overrides (id, user_id, known_ingredient_id, brand, density_g_per_cup, notes)
+			VALUES (?, ?, ?, ?, ?, ?)
+			ON CONFLICT(user_id, known_ingredient_id) DO UPDATE SET brand = ?, density_g_per_cup = ?, notes = ?`,
+		args: [id, userId, knownIngredientId, brand, densityGPerCup, notes, brand, densityGPerCup, notes]
+	});
+}
+
+// Seed default known ingredients
+export async function seedKnownIngredients(): Promise<void> {
+	const defaults: { name: string; category: string; density: number }[] = [
+		{ name: 'all-purpose flour', category: 'flour', density: 125 },
+		{ name: 'bread flour', category: 'flour', density: 127 },
+		{ name: 'cake flour', category: 'flour', density: 114 },
+		{ name: 'whole wheat flour', category: 'flour', density: 128 },
+		{ name: 'granulated sugar', category: 'sweetener', density: 200 },
+		{ name: 'brown sugar', category: 'sweetener', density: 220 },
+		{ name: 'powdered sugar', category: 'sweetener', density: 120 },
+		{ name: 'butter', category: 'dairy', density: 227 },
+		{ name: 'milk', category: 'dairy', density: 244 },
+		{ name: 'heavy cream', category: 'dairy', density: 238 },
+		{ name: 'sour cream', category: 'dairy', density: 230 },
+		{ name: 'cream cheese', category: 'dairy', density: 232 },
+		{ name: 'vegetable oil', category: 'oil', density: 218 },
+		{ name: 'olive oil', category: 'oil', density: 216 },
+		{ name: 'honey', category: 'sweetener', density: 340 },
+		{ name: 'maple syrup', category: 'sweetener', density: 312 },
+		{ name: 'cocoa powder', category: 'baking', density: 86 },
+		{ name: 'cornstarch', category: 'baking', density: 128 },
+		{ name: 'baking powder', category: 'baking', density: 230 },
+		{ name: 'baking soda', category: 'baking', density: 220 },
+		{ name: 'salt', category: 'seasoning', density: 288 },
+		{ name: 'rolled oats', category: 'grain', density: 90 },
+		{ name: 'rice', category: 'grain', density: 185 },
+		{ name: 'peanut butter', category: 'nut', density: 258 },
+		{ name: 'almond flour', category: 'flour', density: 96 },
+		{ name: 'coconut flour', category: 'flour', density: 112 },
+		{ name: 'water', category: 'liquid', density: 237 },
+	];
+
+	for (const d of defaults) {
+		await db.execute({
+			sql: 'INSERT OR IGNORE INTO known_ingredients (id, canonical_name, category, density_g_per_cup) VALUES (?, ?, ?, ?)',
+			args: [crypto.randomUUID(), d.name, d.category, d.density]
+		});
+	}
 }

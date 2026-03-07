@@ -1,6 +1,7 @@
 import { redirect, fail } from '@sveltejs/kit';
-import { getRecipesByUser, createRecipe, deleteRecipe } from '$lib/server/db';
+import { getRecipesByUser, createRecipe, deleteRecipe, setRecipeIngredients } from '$lib/server/db';
 import { parseRecipeFromUrl } from '$lib/server/recipe-parser';
+import { parseAndMatchIngredient } from '$lib/server/ingredient-parser';
 import type { PageServerLoad, Actions } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -73,6 +74,13 @@ export const actions: Actions = {
 				parsed.instructions,
 				parsed.extras
 			);
+
+			// Parse and match each ingredient to known ingredients
+			const parsedIngredients = await Promise.all(
+				parsed.ingredients.map((raw) => parseAndMatchIngredient(raw))
+			);
+			await setRecipeIngredients(recipe.id, parsedIngredients);
+
 			redirect(303, `/recipes/${recipe.id}`);
 		} catch (err) {
 			if (err && typeof err === 'object' && 'status' in err && 'location' in err) throw err;

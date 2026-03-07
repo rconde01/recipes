@@ -135,6 +135,48 @@
 				{/each}
 			</div>
 
+			{#if data.parsedIngredients.length > 0}
+				<div class="field">
+					<div class="field-header">
+						<span>Ingredient Breakdown</span>
+					</div>
+					<table class="ingredients-table">
+						<thead>
+							<tr>
+								<th>Qty</th>
+								<th>Unit</th>
+								<th>Ingredient</th>
+								<th>Matched To</th>
+								<th>g/cup</th>
+							</tr>
+						</thead>
+						<tbody>
+							{#each data.parsedIngredients as pi}
+								<tr>
+									<td>{pi.quantity != null ? pi.quantity : '—'}</td>
+									<td>{pi.unit || '—'}</td>
+									<td>{pi.name || pi.raw_text}</td>
+									<td>
+										{#if pi.known_name}
+											<span class="matched">{pi.known_name}</span>
+										{:else}
+											<span class="unmatched">unmatched</span>
+										{/if}
+									</td>
+									<td>
+										{#if pi.density_g_per_cup != null}
+											{pi.density_g_per_cup}{#if pi.user_override} <span class="override-badge">custom</span>{/if}
+										{:else}
+											—
+										{/if}
+									</td>
+								</tr>
+							{/each}
+						</tbody>
+					</table>
+				</div>
+			{/if}
+
 			<div class="field">
 				<div class="field-header">
 					<span>Instructions</span>
@@ -293,6 +335,55 @@
 
 	.recipe-meta a:hover {
 		text-decoration: underline;
+	}
+
+	.ingredients-table {
+		width: 100%;
+		border-collapse: collapse;
+		font-size: 0.9rem;
+		margin-top: 0.5rem;
+	}
+
+	.ingredients-table th {
+		text-align: left;
+		padding: 0.5rem 0.75rem;
+		background: #f5f5f5;
+		border-bottom: 2px solid #e0e0e0;
+		font-weight: 600;
+		color: #555;
+		font-size: 0.8rem;
+		text-transform: uppercase;
+		letter-spacing: 0.03em;
+	}
+
+	.ingredients-table td {
+		padding: 0.4rem 0.75rem;
+		border-bottom: 1px solid #f0f0f0;
+	}
+
+	.ingredients-table tr:hover {
+		background: #fafafa;
+	}
+
+	.matched {
+		color: #2e7d32;
+		font-weight: 500;
+	}
+
+	.unmatched {
+		color: #999;
+		font-style: italic;
+	}
+
+	.override-badge {
+		display: inline-block;
+		font-size: 0.7rem;
+		background: #e3f2fd;
+		color: #1565c0;
+		padding: 0.1rem 0.35rem;
+		border-radius: 3px;
+		font-weight: 600;
+		vertical-align: middle;
 	}
 
 	.header-actions {

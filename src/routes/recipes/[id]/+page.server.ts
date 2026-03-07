@@ -1,6 +1,11 @@
 import { redirect, fail, error } from '@sveltejs/kit';
-import { getRecipesByUser, getRecipeById, updateRecipe, deleteRecipe } from '$lib/server/db';
+import {
+	getRecipesByUser, getRecipeById, updateRecipe, deleteRecipe,
+	getRecipeIngredients, setRecipeIngredients, getAllKnownIngredients,
+	getUserIngredientOverride
+} from '$lib/server/db';
 import type { RecipeExtras } from '$lib/server/db';
+import { parseAndMatchIngredient } from '$lib/server/ingredient-parser';
 import type { PageServerLoad, Actions } from './$types';
 
 export const load: PageServerLoad = async ({ locals, params }) => {
@@ -13,7 +18,46 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		error(404, 'Recipe not found');
 	}
 
-	const recipes = await getRecipesByUser(locals.user.id);
+	const [recipes, recipeIngredients, knownIngredients] = await Promise.all([
+		getRecipesByUser(locals.user.id),
+		getRecipeIngredients(params.id),
+		getAllKnownIngredients()
+	]);
+
+	// Build a map of known ingredient id -> name + density
+	const knownMap = Object.fromEntries(
+		knownIngredients.map((ki) => [ki.id, { name: ki.canonical_name, density_g_per_cup: ki.density_g_per_cup, category: ki.category }])
+	);
+
+	// Enrich parsed ingredients with known ingredient info and user overrides
+	const enrichedIngredients = await Promise.all(
+		recipeIngredients.map(async (ri) => {
+			let known_name: string | null = null;
+			let density_g_per_cup: number | null = null;
+			let user_override = false;
+			if (ri.known_ingredient_id && knownMap[ri.known_ingredient_id]) {
+				const ki = knownMap[ri.known_ingredient_id];
+				known_name = ki.name;
+				density_g_per_cup = ki.density_g_per_cup;
+				// Check user override
+				const override = await getUserIngredientOverride(locals.user!.id, ri.known_ingredient_id);
+				if (override?.density_g_per_cup != null) {
+					density_g_per_cup = override.density_g_per_cup;
+					user_override = true;
+				}
+			}
+			return {
+				raw_text: ri.raw_text,
+				quantity: ri.quantity,
+				unit: ri.unit,
+				name: ri.name,
+				known_ingredient_id: ri.known_ingredient_id,
+				known_name,
+				density_g_per_cup,
+				user_override
+			};
+		})
+	);
 
 	return {
 		recipe: {
@@ -21,7 +65,8 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			ingredients: JSON.parse(recipe.ingredients) as string[],
 			instructions: JSON.parse(recipe.instructions) as string[]
 		},
-		recipes
+		recipes,
+		parsedIngredients: enrichedIngredients
 	} as const;
 };
 
@@ -56,6 +101,12 @@ export const actions: Actions = {
 		};
 
 		await updateRecipe(params.id, locals.user.id, title, description, ingredients, instructions, extras);
+
+		// Re-parse and match ingredients
+		const parsedIngredients = await Promise.all(
+			ingredients.map((raw) => parseAndMatchIngredient(raw))
+		);
+		await setRecipeIngredients(params.id, parsedIngredients);
 
 		return { success: true };
 	},
