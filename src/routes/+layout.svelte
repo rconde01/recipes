@@ -9,6 +9,7 @@
 		<a href="/">Recipes</a>
 		{#if data.user}
 			<a href="/meal-plan">Meal Plan</a>
+			<a href="/cook">Cook</a>
 		{/if}
 	</div>
 	<div>
