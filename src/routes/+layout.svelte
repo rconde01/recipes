@@ -5,7 +5,12 @@
 </script>
 
 <nav>
-	<a href="/">Recipes</a>
+	<div class="nav-links">
+		<a href="/">Recipes</a>
+		{#if data.user}
+			<a href="/meal-plan">Meal Plan</a>
+		{/if}
+	</div>
 	<div>
 		{#if data.user}
 			<span>Hi, {data.user.username}</span>
@@ -39,6 +44,12 @@
 		padding: 1rem 2rem;
 		background: #fff;
 		border-bottom: 1px solid #e0e0e0;
+	}
+
+	.nav-links {
+		display: flex;
+		align-items: center;
+		gap: 1.5rem;
 	}
 
 	nav a {
