@@ -25,7 +25,8 @@ export async function initDb() {
 		{ name: 'yield', def: "TEXT NOT NULL DEFAULT ''" },
 		{ name: 'category', def: "TEXT NOT NULL DEFAULT ''" },
 		{ name: 'cuisine', def: "TEXT NOT NULL DEFAULT ''" },
-		{ name: 'image_url', def: "TEXT NOT NULL DEFAULT ''" }
+		{ name: 'image_url', def: "TEXT NOT NULL DEFAULT ''" },
+		{ name: 'recipe_type', def: "TEXT NOT NULL DEFAULT ''" }
 	];
 
 	await db.batch([
@@ -207,6 +208,7 @@ export interface Recipe {
 	category: string;
 	cuisine: string;
 	image_url: string;
+	recipe_type: string;
 	created_at: string;
 	updated_at: string;
 }
@@ -236,6 +238,7 @@ export interface RecipeExtras {
 	category?: string;
 	cuisine?: string;
 	image_url?: string;
+	recipe_type?: string;
 }
 
 export async function createRecipe(
@@ -251,14 +254,14 @@ export async function createRecipe(
 
 	await db.execute({
 		sql: `INSERT INTO recipes (id, user_id, title, description, ingredients, instructions,
-			source_url, prep_time, cook_time, total_time, yield, category, cuisine, image_url,
-			created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			source_url, prep_time, cook_time, total_time, yield, category, cuisine, image_url, recipe_type,
+			created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		args: [
 			id, userId, title, description,
 			JSON.stringify(ingredients), JSON.stringify(instructions),
 			extras.source_url ?? '', extras.prep_time ?? '', extras.cook_time ?? '',
 			extras.total_time ?? '', extras.yield ?? '', extras.category ?? '',
-			extras.cuisine ?? '', extras.image_url ?? '',
+			extras.cuisine ?? '', extras.image_url ?? '', extras.recipe_type ?? '',
 			now, now
 		]
 	});
@@ -275,6 +278,7 @@ export async function createRecipe(
 		category: extras.category ?? '',
 		cuisine: extras.cuisine ?? '',
 		image_url: extras.image_url ?? '',
+		recipe_type: extras.recipe_type ?? '',
 		created_at: now, updated_at: now
 	};
 }
@@ -291,17 +295,24 @@ export async function updateRecipe(
 	const result = await db.execute({
 		sql: `UPDATE recipes SET title = ?, description = ?, ingredients = ?, instructions = ?,
 			source_url = ?, prep_time = ?, cook_time = ?, total_time = ?,
-			yield = ?, category = ?, cuisine = ?, image_url = ?,
+			yield = ?, category = ?, cuisine = ?, image_url = ?, recipe_type = ?,
 			updated_at = datetime('now') WHERE id = ? AND user_id = ?`,
 		args: [
 			title, description, JSON.stringify(ingredients), JSON.stringify(instructions),
 			extras.source_url ?? '', extras.prep_time ?? '', extras.cook_time ?? '',
 			extras.total_time ?? '', extras.yield ?? '', extras.category ?? '',
-			extras.cuisine ?? '', extras.image_url ?? '',
+			extras.cuisine ?? '', extras.image_url ?? '', extras.recipe_type ?? '',
 			id, userId
 		]
 	});
 	return result.rowsAffected > 0;
+}
+
+export async function updateRecipeType(id: string, userId: string, recipeType: string): Promise<void> {
+	await db.execute({
+		sql: 'UPDATE recipes SET recipe_type = ? WHERE id = ? AND user_id = ?',
+		args: [recipeType, id, userId]
+	});
 }
 
 export async function deleteRecipe(id: string, userId: string): Promise<boolean> {

@@ -2,7 +2,7 @@ import { redirect, fail, error } from '@sveltejs/kit';
 import {
 	getRecipesByUser, getRecipeById, updateRecipe, deleteRecipe,
 	getRecipeIngredients, setRecipeIngredients, getRecipeSteps, setRecipeSteps,
-	getAllKnownIngredients, getUserIngredientOverride
+	getAllKnownIngredients, getUserIngredientOverride, updateRecipeType
 } from '$lib/server/db';
 import type { RecipeExtras } from '$lib/server/db';
 import { parseAndMatchIngredient } from '$lib/server/ingredient-parser';
@@ -11,6 +11,8 @@ import { getSubstitutions } from '$lib/substitutions';
 import { categorizeIngredient, mapDbCategory } from '$lib/ingredient-categories';
 import type { IngredientCategory } from '$lib/ingredient-categories';
 import { scaleRecipeSmart } from '$lib/server/recipe-scaler-ai';
+import { categorizeRecipeSmart, RECIPE_TYPE_LABELS, RECIPE_TYPE_COLORS } from '$lib/server/recipe-categorizer';
+import type { RecipeType } from '$lib/server/recipe-categorizer';
 import type { PageServerLoad, Actions } from './$types';
 
 export const load: PageServerLoad = async ({ locals, params }) => {
@@ -95,6 +97,21 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		})
 	);
 
+	// Auto-categorize recipe type if not set
+	const recipeIngredientsList = JSON.parse(recipe.ingredients) as string[];
+	const recipeInstructionsList = JSON.parse(recipe.instructions) as string[];
+	let recipeType = recipe.recipe_type as RecipeType || '';
+	if (!recipeType) {
+		recipeType = await categorizeRecipeSmart(
+			recipe.title,
+			recipeIngredientsList,
+			recipeInstructionsList,
+			recipe.category
+		);
+		// Persist the auto-categorized type
+		await updateRecipeType(params.id, locals.user!.id, recipeType);
+	}
+
 	// Parse step data
 	const timelineSteps = recipeSteps.map((step) => ({
 		position: step.position,
@@ -114,7 +131,11 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		},
 		recipes,
 		parsedIngredients: enrichedIngredients,
-		timelineSteps
+		timelineSteps,
+		recipeType: recipeType as RecipeType,
+		recipeTypeLabel: RECIPE_TYPE_LABELS[recipeType as RecipeType] ?? recipeType,
+		recipeTypeColor: RECIPE_TYPE_COLORS[recipeType as RecipeType] ?? '#757575',
+		allRecipeTypes: Object.entries(RECIPE_TYPE_LABELS).map(([value, label]) => ({ value, label }))
 	} as const;
 };
 
@@ -137,6 +158,13 @@ export const actions: Actions = {
 		const ingredients = ingredientsRaw.filter((i) => i.length > 0);
 		const instructions = instructionsRaw.filter((i) => i.length > 0);
 
+		// Determine recipe type: use user-selected if provided, else re-categorize
+		let recipeType = formData.get('recipe_type')?.toString().trim() ?? '';
+		if (!recipeType) {
+			recipeType = await categorizeRecipeSmart(title, ingredients, instructions,
+				formData.get('category')?.toString().trim() ?? '');
+		}
+
 		const extras: RecipeExtras = {
 			source_url: formData.get('source_url')?.toString().trim() ?? '',
 			prep_time: formData.get('prep_time')?.toString().trim() ?? '',
@@ -145,7 +173,8 @@ export const actions: Actions = {
 			yield: formData.get('yield')?.toString().trim() ?? '',
 			category: formData.get('category')?.toString().trim() ?? '',
 			cuisine: formData.get('cuisine')?.toString().trim() ?? '',
-			image_url: formData.get('image_url')?.toString().trim() ?? ''
+			image_url: formData.get('image_url')?.toString().trim() ?? '',
+			recipe_type: recipeType
 		};
 
 		await updateRecipe(params.id, locals.user.id, title, description, ingredients, instructions, extras);

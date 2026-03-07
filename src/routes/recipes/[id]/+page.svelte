@@ -239,6 +239,15 @@
 				</div>
 			</div>
 
+			<div class="recipe-type-bar">
+				<span class="recipe-type-badge" style="background: {data.recipeTypeColor}">{data.recipeTypeLabel}</span>
+				<select name="recipe_type" class="recipe-type-select" value={data.recipeType}>
+					{#each data.allRecipeTypes as rt}
+						<option value={rt.value} selected={rt.value === data.recipeType}>{rt.label}</option>
+					{/each}
+				</select>
+			</div>
+
 			{#if data.recipe.image_url}
 				<div class="recipe-image">
 					<img src={data.recipe.image_url} alt={data.recipe.title} />
@@ -684,6 +693,37 @@
 	}
 
 	.title-input:focus {
+		border-color: #e65100;
+	}
+
+	.recipe-type-bar {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		margin-bottom: 1rem;
+	}
+
+	.recipe-type-badge {
+		display: inline-block;
+		font-size: 0.75rem;
+		color: #fff;
+		padding: 0.2rem 0.6rem;
+		border-radius: 4px;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+	}
+
+	.recipe-type-select {
+		padding: 0.25rem 0.5rem;
+		border: 1px solid #ccc;
+		border-radius: 4px;
+		font-size: 0.85rem;
+		background: #fff;
+		cursor: pointer;
+	}
+
+	.recipe-type-select:hover {
 		border-color: #e65100;
 	}
 

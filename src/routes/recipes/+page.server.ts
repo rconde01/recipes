@@ -1,8 +1,9 @@
 import { redirect, fail } from '@sveltejs/kit';
-import { getRecipesByUser, createRecipe, deleteRecipe, setRecipeIngredients, setRecipeSteps } from '$lib/server/db';
+import { getRecipesByUser, createRecipe, deleteRecipe, setRecipeIngredients, setRecipeSteps, updateRecipeType } from '$lib/server/db';
 import { parseRecipeFromUrl } from '$lib/server/recipe-parser';
 import { parseAndMatchIngredient } from '$lib/server/ingredient-parser';
 import { analyzeStepsSmart } from '$lib/server/step-analyzer';
+import { categorizeRecipeSmart } from '$lib/server/recipe-categorizer';
 import type { PageServerLoad, Actions } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -85,6 +86,13 @@ export const actions: Actions = {
 			// Analyze steps for timeline
 			const analyzedSteps = await analyzeStepsSmart(parsed.instructions, parsed.ingredients);
 			await setRecipeSteps(recipe.id, analyzedSteps);
+
+			// Auto-categorize recipe type
+			const recipeType = await categorizeRecipeSmart(
+				parsed.title, parsed.ingredients, parsed.instructions,
+				parsed.extras?.category ?? ''
+			);
+			await updateRecipeType(recipe.id, locals.user.id, recipeType);
 
 			redirect(303, `/recipes/${recipe.id}`);
 		} catch (err) {
