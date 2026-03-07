@@ -25,6 +25,17 @@ function createDatabase() {
 			expires_at TEXT NOT NULL,
 			created_at TEXT NOT NULL DEFAULT (datetime('now'))
 		);
+
+		CREATE TABLE IF NOT EXISTS recipes (
+			id TEXT PRIMARY KEY,
+			user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			title TEXT NOT NULL,
+			description TEXT NOT NULL DEFAULT '',
+			ingredients TEXT NOT NULL DEFAULT '[]',
+			instructions TEXT NOT NULL DEFAULT '[]',
+			created_at TEXT NOT NULL DEFAULT (datetime('now')),
+			updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+		);
 	`);
 
 	return db;
@@ -117,4 +128,71 @@ export function getSession(sessionId: string): (Session & { email: string; usern
 export function deleteSession(sessionId: string): void {
 	const db = getDb();
 	db.prepare('DELETE FROM sessions WHERE id = ?').run(sessionId);
+}
+
+// Recipes
+
+export interface Recipe {
+	id: string;
+	user_id: string;
+	title: string;
+	description: string;
+	ingredients: string; // JSON array
+	instructions: string; // JSON array
+	created_at: string;
+	updated_at: string;
+}
+
+export function getRecipesByUser(userId: string): Recipe[] {
+	const db = getDb();
+	return db.prepare('SELECT * FROM recipes WHERE user_id = ? ORDER BY updated_at DESC').all(userId) as Recipe[];
+}
+
+export function getRecipeById(id: string, userId: string): Recipe | undefined {
+	const db = getDb();
+	return db.prepare('SELECT * FROM recipes WHERE id = ? AND user_id = ?').get(id, userId) as Recipe | undefined;
+}
+
+export function createRecipe(
+	userId: string,
+	title: string,
+	description: string,
+	ingredients: string[],
+	instructions: string[]
+): Recipe {
+	const db = getDb();
+	const id = crypto.randomUUID();
+	const now = new Date().toISOString();
+
+	db.prepare(
+		'INSERT INTO recipes (id, user_id, title, description, ingredients, instructions, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+	).run(id, userId, title, description, JSON.stringify(ingredients), JSON.stringify(instructions), now, now);
+
+	return {
+		id, user_id: userId, title, description,
+		ingredients: JSON.stringify(ingredients),
+		instructions: JSON.stringify(instructions),
+		created_at: now, updated_at: now
+	};
+}
+
+export function updateRecipe(
+	id: string,
+	userId: string,
+	title: string,
+	description: string,
+	ingredients: string[],
+	instructions: string[]
+): boolean {
+	const db = getDb();
+	const result = db.prepare(
+		'UPDATE recipes SET title = ?, description = ?, ingredients = ?, instructions = ?, updated_at = datetime(\'now\') WHERE id = ? AND user_id = ?'
+	).run(title, description, JSON.stringify(ingredients), JSON.stringify(instructions), id, userId);
+	return result.changes > 0;
+}
+
+export function deleteRecipe(id: string, userId: string): boolean {
+	const db = getDb();
+	const result = db.prepare('DELETE FROM recipes WHERE id = ? AND user_id = ?').run(id, userId);
+	return result.changes > 0;
 }

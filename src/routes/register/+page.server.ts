@@ -4,7 +4,7 @@ import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	if (locals.user) {
-		redirect(303, '/');
+		redirect(303, '/recipes');
 	}
 };
 
@@ -56,6 +56,6 @@ export const actions: Actions = {
 			return fail(500, { error: 'Registration failed. Please try again.', email, username });
 		}
 
-		redirect(303, '/');
+		redirect(303, '/recipes');
 	}
 };
