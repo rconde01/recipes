@@ -72,6 +72,51 @@
 				</div>
 			</div>
 
+			{#if data.recipe.image_url}
+				<div class="recipe-image">
+					<img src={data.recipe.image_url} alt={data.recipe.title} />
+				</div>
+			{/if}
+
+			<table class="recipe-meta">
+				<tbody>
+					{#if data.recipe.source_url}
+						<tr>
+							<th>Source</th>
+							<td><a href={data.recipe.source_url} target="_blank" rel="noopener">{data.recipe.source_url}</a></td>
+						</tr>
+					{/if}
+					{#if data.recipe.prep_time}
+						<tr><th>Prep Time</th><td>{data.recipe.prep_time}</td></tr>
+					{/if}
+					{#if data.recipe.cook_time}
+						<tr><th>Cook Time</th><td>{data.recipe.cook_time}</td></tr>
+					{/if}
+					{#if data.recipe.total_time}
+						<tr><th>Total Time</th><td>{data.recipe.total_time}</td></tr>
+					{/if}
+					{#if data.recipe.yield}
+						<tr><th>Yield</th><td>{data.recipe.yield}</td></tr>
+					{/if}
+					{#if data.recipe.category}
+						<tr><th>Category</th><td>{data.recipe.category}</td></tr>
+					{/if}
+					{#if data.recipe.cuisine}
+						<tr><th>Cuisine</th><td>{data.recipe.cuisine}</td></tr>
+					{/if}
+				</tbody>
+			</table>
+
+			<!-- Hidden fields for extras so they persist on save -->
+			<input type="hidden" name="source_url" value={data.recipe.source_url} />
+			<input type="hidden" name="prep_time" value={data.recipe.prep_time} />
+			<input type="hidden" name="cook_time" value={data.recipe.cook_time} />
+			<input type="hidden" name="total_time" value={data.recipe.total_time} />
+			<input type="hidden" name="yield" value={data.recipe.yield} />
+			<input type="hidden" name="category" value={data.recipe.category} />
+			<input type="hidden" name="cuisine" value={data.recipe.cuisine} />
+			<input type="hidden" name="image_url" value={data.recipe.image_url} />
+
 			<label class="field">
 				Description
 				<textarea name="description" rows="2" placeholder="Brief description...">{data.recipe.description}</textarea>
@@ -205,6 +250,49 @@
 
 	.title-input:focus {
 		border-color: #e65100;
+	}
+
+	.recipe-image {
+		margin-bottom: 1.5rem;
+	}
+
+	.recipe-image img {
+		max-width: 100%;
+		max-height: 300px;
+		border-radius: 8px;
+		object-fit: cover;
+	}
+
+	.recipe-meta {
+		width: 100%;
+		border-collapse: collapse;
+		margin-bottom: 1.5rem;
+		font-size: 0.95rem;
+	}
+
+	.recipe-meta th {
+		text-align: left;
+		padding: 0.5rem 1rem 0.5rem 0;
+		color: #666;
+		font-weight: 600;
+		white-space: nowrap;
+		border-bottom: 1px solid #f0f0f0;
+		width: 120px;
+	}
+
+	.recipe-meta td {
+		padding: 0.5rem 0;
+		border-bottom: 1px solid #f0f0f0;
+		word-break: break-all;
+	}
+
+	.recipe-meta a {
+		color: #e65100;
+		text-decoration: none;
+	}
+
+	.recipe-meta a:hover {
+		text-decoration: underline;
 	}
 
 	.header-actions {

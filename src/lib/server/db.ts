@@ -17,6 +17,17 @@ const db = getDb();
 
 export async function initDb() {
 	if (building) return;
+	const newColumns = [
+		{ name: 'source_url', def: "TEXT NOT NULL DEFAULT ''" },
+		{ name: 'prep_time', def: "TEXT NOT NULL DEFAULT ''" },
+		{ name: 'cook_time', def: "TEXT NOT NULL DEFAULT ''" },
+		{ name: 'total_time', def: "TEXT NOT NULL DEFAULT ''" },
+		{ name: 'yield', def: "TEXT NOT NULL DEFAULT ''" },
+		{ name: 'category', def: "TEXT NOT NULL DEFAULT ''" },
+		{ name: 'cuisine', def: "TEXT NOT NULL DEFAULT ''" },
+		{ name: 'image_url', def: "TEXT NOT NULL DEFAULT ''" }
+	];
+
 	await db.batch([
 		`CREATE TABLE IF NOT EXISTS users (
 			id TEXT PRIMARY KEY,
@@ -39,10 +50,27 @@ export async function initDb() {
 			description TEXT NOT NULL DEFAULT '',
 			ingredients TEXT NOT NULL DEFAULT '[]',
 			instructions TEXT NOT NULL DEFAULT '[]',
+			source_url TEXT NOT NULL DEFAULT '',
+			prep_time TEXT NOT NULL DEFAULT '',
+			cook_time TEXT NOT NULL DEFAULT '',
+			total_time TEXT NOT NULL DEFAULT '',
+			yield TEXT NOT NULL DEFAULT '',
+			category TEXT NOT NULL DEFAULT '',
+			cuisine TEXT NOT NULL DEFAULT '',
+			image_url TEXT NOT NULL DEFAULT '',
 			created_at TEXT NOT NULL DEFAULT (datetime('now')),
 			updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 		)`
 	]);
+
+	// Migrate: add new columns to existing recipes table
+	for (const col of newColumns) {
+		try {
+			await db.execute(`ALTER TABLE recipes ADD COLUMN ${col.name} ${col.def}`);
+		} catch {
+			// Column already exists, ignore
+		}
+	}
 }
 
 function hashPassword(password: string, salt: string): string {
@@ -129,6 +157,14 @@ export interface Recipe {
 	description: string;
 	ingredients: string; // JSON array
 	instructions: string; // JSON array
+	source_url: string;
+	prep_time: string;
+	cook_time: string;
+	total_time: string;
+	yield: string;
+	category: string;
+	cuisine: string;
+	image_url: string;
 	created_at: string;
 	updated_at: string;
 }
@@ -149,25 +185,54 @@ export async function getRecipeById(id: string, userId: string): Promise<Recipe 
 	return result.rows[0] as unknown as Recipe | undefined;
 }
 
+export interface RecipeExtras {
+	source_url?: string;
+	prep_time?: string;
+	cook_time?: string;
+	total_time?: string;
+	yield?: string;
+	category?: string;
+	cuisine?: string;
+	image_url?: string;
+}
+
 export async function createRecipe(
 	userId: string,
 	title: string,
 	description: string,
 	ingredients: string[],
-	instructions: string[]
+	instructions: string[],
+	extras: RecipeExtras = {}
 ): Promise<Recipe> {
 	const id = crypto.randomUUID();
 	const now = new Date().toISOString();
 
 	await db.execute({
-		sql: 'INSERT INTO recipes (id, user_id, title, description, ingredients, instructions, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-		args: [id, userId, title, description, JSON.stringify(ingredients), JSON.stringify(instructions), now, now]
+		sql: `INSERT INTO recipes (id, user_id, title, description, ingredients, instructions,
+			source_url, prep_time, cook_time, total_time, yield, category, cuisine, image_url,
+			created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		args: [
+			id, userId, title, description,
+			JSON.stringify(ingredients), JSON.stringify(instructions),
+			extras.source_url ?? '', extras.prep_time ?? '', extras.cook_time ?? '',
+			extras.total_time ?? '', extras.yield ?? '', extras.category ?? '',
+			extras.cuisine ?? '', extras.image_url ?? '',
+			now, now
+		]
 	});
 
 	return {
 		id, user_id: userId, title, description,
 		ingredients: JSON.stringify(ingredients),
 		instructions: JSON.stringify(instructions),
+		source_url: extras.source_url ?? '',
+		prep_time: extras.prep_time ?? '',
+		cook_time: extras.cook_time ?? '',
+		total_time: extras.total_time ?? '',
+		yield: extras.yield ?? '',
+		category: extras.category ?? '',
+		cuisine: extras.cuisine ?? '',
+		image_url: extras.image_url ?? '',
 		created_at: now, updated_at: now
 	};
 }
@@ -178,11 +243,21 @@ export async function updateRecipe(
 	title: string,
 	description: string,
 	ingredients: string[],
-	instructions: string[]
+	instructions: string[],
+	extras: RecipeExtras = {}
 ): Promise<boolean> {
 	const result = await db.execute({
-		sql: "UPDATE recipes SET title = ?, description = ?, ingredients = ?, instructions = ?, updated_at = datetime('now') WHERE id = ? AND user_id = ?",
-		args: [title, description, JSON.stringify(ingredients), JSON.stringify(instructions), id, userId]
+		sql: `UPDATE recipes SET title = ?, description = ?, ingredients = ?, instructions = ?,
+			source_url = ?, prep_time = ?, cook_time = ?, total_time = ?,
+			yield = ?, category = ?, cuisine = ?, image_url = ?,
+			updated_at = datetime('now') WHERE id = ? AND user_id = ?`,
+		args: [
+			title, description, JSON.stringify(ingredients), JSON.stringify(instructions),
+			extras.source_url ?? '', extras.prep_time ?? '', extras.cook_time ?? '',
+			extras.total_time ?? '', extras.yield ?? '', extras.category ?? '',
+			extras.cuisine ?? '', extras.image_url ?? '',
+			id, userId
+		]
 	});
 	return result.rowsAffected > 0;
 }

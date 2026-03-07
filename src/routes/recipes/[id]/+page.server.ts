@@ -1,5 +1,6 @@
 import { redirect, fail, error } from '@sveltejs/kit';
 import { getRecipesByUser, getRecipeById, updateRecipe, deleteRecipe } from '$lib/server/db';
+import type { RecipeExtras } from '$lib/server/db';
 import type { PageServerLoad, Actions } from './$types';
 
 export const load: PageServerLoad = async ({ locals, params }) => {
@@ -21,7 +22,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			instructions: JSON.parse(recipe.instructions) as string[]
 		},
 		recipes
-	};
+	} as const;
 };
 
 export const actions: Actions = {
@@ -43,7 +44,18 @@ export const actions: Actions = {
 		const ingredients = ingredientsRaw.filter((i) => i.length > 0);
 		const instructions = instructionsRaw.filter((i) => i.length > 0);
 
-		await updateRecipe(params.id, locals.user.id, title, description, ingredients, instructions);
+		const extras: RecipeExtras = {
+			source_url: formData.get('source_url')?.toString().trim() ?? '',
+			prep_time: formData.get('prep_time')?.toString().trim() ?? '',
+			cook_time: formData.get('cook_time')?.toString().trim() ?? '',
+			total_time: formData.get('total_time')?.toString().trim() ?? '',
+			yield: formData.get('yield')?.toString().trim() ?? '',
+			category: formData.get('category')?.toString().trim() ?? '',
+			cuisine: formData.get('cuisine')?.toString().trim() ?? '',
+			image_url: formData.get('image_url')?.toString().trim() ?? ''
+		};
+
+		await updateRecipe(params.id, locals.user.id, title, description, ingredients, instructions, extras);
 
 		return { success: true };
 	},

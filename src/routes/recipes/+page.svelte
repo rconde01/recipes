@@ -1,7 +1,8 @@
 <script lang="ts">
-	import type { PageData } from './$types';
+	import type { PageData, ActionData } from './$types';
 
-	let { data } = $props<{ data: PageData }>();
+	let { data, form } = $props<{ data: PageData; form: ActionData }>();
+	let showImport = $state(false);
 </script>
 
 <svelte:head>
@@ -32,7 +33,19 @@
 
 	<section class="recipe-detail">
 		<div class="placeholder">
-			<p>Select a recipe from the list or create a new one.</p>
+			{#if form?.error}
+				<p class="error">{form.error}</p>
+			{/if}
+			<p>Select a recipe from the list, create a new one, or import from a URL.</p>
+			<button class="btn-import" onclick={() => showImport = !showImport}>
+				{showImport ? 'Cancel' : 'Import from URL'}
+			</button>
+			{#if showImport}
+				<form method="POST" action="?/import" class="import-form">
+					<input type="url" name="url" placeholder="https://example.com/recipe" required />
+					<button type="submit" class="btn-save">Import</button>
+				</form>
+			{/if}
 		</div>
 	</section>
 </div>
@@ -116,9 +129,64 @@
 
 	.placeholder {
 		display: flex;
+		flex-direction: column;
 		align-items: center;
 		justify-content: center;
 		height: 100%;
 		color: #999;
+		gap: 1rem;
+	}
+
+	.error {
+		color: #c62828;
+		background: #ffebee;
+		padding: 0.7rem;
+		border-radius: 4px;
+		width: 100%;
+		max-width: 500px;
+		text-align: center;
+	}
+
+	.btn-import {
+		background: #e65100;
+		color: white;
+		border: none;
+		padding: 0.5rem 1.2rem;
+		border-radius: 4px;
+		cursor: pointer;
+		font-weight: 600;
+	}
+
+	.btn-import:hover {
+		background: #bf360c;
+	}
+
+	.import-form {
+		display: flex;
+		gap: 0.5rem;
+		width: 100%;
+		max-width: 500px;
+	}
+
+	.import-form input {
+		flex: 1;
+		padding: 0.5rem;
+		border: 1px solid #ccc;
+		border-radius: 4px;
+		font-size: 0.95rem;
+	}
+
+	.btn-save {
+		background: #e65100;
+		color: white;
+		border: none;
+		padding: 0.5rem 1.2rem;
+		border-radius: 4px;
+		cursor: pointer;
+		font-weight: 600;
+	}
+
+	.btn-save:hover {
+		background: #bf360c;
 	}
 </style>
