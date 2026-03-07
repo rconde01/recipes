@@ -37,6 +37,13 @@
 	let allTechniques = $derived([...new Set(data.timelineSteps.flatMap((s: { techniques: string[] }) => s.techniques))]);
 	let maxDuration = $derived(Math.max(...data.timelineSteps.map((s: { duration_minutes: number }) => s.duration_minutes), 1));
 
+	// Substitution panel state
+	let expandedIngredient = $state<number | null>(null);
+
+	function toggleSubstitutions(index: number) {
+		expandedIngredient = expandedIngredient === index ? null : index;
+	}
+
 	function formatDuration(minutes: number): string {
 		if (minutes === 0) return '0 min';
 		if (minutes < 1) return `${Math.round(minutes * 60)} sec`;
@@ -168,11 +175,24 @@
 							</tr>
 						</thead>
 						<tbody>
-							{#each data.parsedIngredients as pi}
-								<tr>
+							{#each data.parsedIngredients as pi, idx}
+								<tr
+									class:has-subs={pi.substitutions.length > 0}
+									class:expanded={expandedIngredient === idx}
+									onclick={() => { if (pi.substitutions.length > 0) toggleSubstitutions(idx); }}
+								>
 									<td>{pi.quantity != null ? pi.quantity : '—'}</td>
 									<td>{pi.unit || '—'}</td>
-									<td>{pi.name || pi.raw_text}</td>
+									<td>
+										<span class="ingredient-name">
+											{pi.name || pi.raw_text}
+											{#if pi.substitutions.length > 0}
+												<span class="sub-indicator" title="Click to see substitutions">
+													{expandedIngredient === idx ? '▾' : '▸'} {pi.substitutions.length}
+												</span>
+											{/if}
+										</span>
+									</td>
 									<td>
 										{#if pi.known_name}
 											<span class="matched">{pi.known_name}</span>
@@ -188,6 +208,27 @@
 										{/if}
 									</td>
 								</tr>
+								{#if expandedIngredient === idx && pi.substitutions.length > 0}
+									<tr class="sub-row">
+										<td colspan="5">
+											<div class="sub-panel">
+												<div class="sub-panel-header">Substitutions for <strong>{pi.known_name || pi.name}</strong></div>
+												<div class="sub-list">
+													{#each pi.substitutions as sub}
+														<div class="sub-card" class:sub-direct={sub.category === 'direct'} class:sub-dietary={sub.category === 'dietary'} class:sub-emergency={sub.category === 'emergency'}>
+															<div class="sub-card-top">
+																<span class="sub-name">{sub.name}</span>
+																<span class="sub-cat-badge">{sub.category}</span>
+															</div>
+															<div class="sub-ratio">{sub.ratio}</div>
+															<div class="sub-notes">{sub.notes}</div>
+														</div>
+													{/each}
+												</div>
+											</div>
+										</td>
+									</tr>
+								{/if}
 							{/each}
 						</tbody>
 					</table>
@@ -469,6 +510,131 @@
 	.unmatched {
 		color: #999;
 		font-style: italic;
+	}
+
+	/* Substitution styles */
+	.ingredients-table tr.has-subs {
+		cursor: pointer;
+	}
+
+	.ingredients-table tr.has-subs:hover {
+		background: #fff8e1;
+	}
+
+	.ingredients-table tr.expanded {
+		background: #fff3e0;
+	}
+
+	.ingredient-name {
+		display: flex;
+		align-items: center;
+		gap: 0.4rem;
+	}
+
+	.sub-indicator {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.15rem;
+		font-size: 0.7rem;
+		color: #e65100;
+		font-weight: 600;
+		background: #fff3e0;
+		padding: 0.05rem 0.35rem;
+		border-radius: 3px;
+		white-space: nowrap;
+	}
+
+	.sub-row td {
+		padding: 0 !important;
+		border-bottom: 2px solid #e65100;
+	}
+
+	.sub-panel {
+		background: #fafafa;
+		padding: 0.75rem;
+		border-top: 1px solid #e0e0e0;
+	}
+
+	.sub-panel-header {
+		font-size: 0.85rem;
+		margin-bottom: 0.5rem;
+		color: #555;
+	}
+
+	.sub-list {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+		gap: 0.5rem;
+	}
+
+	.sub-card {
+		background: #fff;
+		border: 1px solid #e0e0e0;
+		border-radius: 6px;
+		padding: 0.6rem;
+		font-size: 0.82rem;
+		line-height: 1.35;
+		border-left: 3px solid #ccc;
+	}
+
+	.sub-card.sub-direct {
+		border-left-color: #2e7d32;
+	}
+
+	.sub-card.sub-dietary {
+		border-left-color: #1565c0;
+	}
+
+	.sub-card.sub-emergency {
+		border-left-color: #e65100;
+	}
+
+	.sub-card-top {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		margin-bottom: 0.25rem;
+	}
+
+	.sub-name {
+		font-weight: 600;
+		color: #333;
+	}
+
+	.sub-cat-badge {
+		font-size: 0.65rem;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		padding: 0.1rem 0.3rem;
+		border-radius: 3px;
+		font-weight: 600;
+	}
+
+	.sub-direct .sub-cat-badge {
+		background: #e8f5e9;
+		color: #2e7d32;
+	}
+
+	.sub-dietary .sub-cat-badge {
+		background: #e3f2fd;
+		color: #1565c0;
+	}
+
+	.sub-emergency .sub-cat-badge {
+		background: #fff3e0;
+		color: #e65100;
+	}
+
+	.sub-ratio {
+		font-weight: 500;
+		color: #555;
+		font-size: 0.78rem;
+		margin-bottom: 0.15rem;
+	}
+
+	.sub-notes {
+		color: #777;
+		font-size: 0.78rem;
 	}
 
 	.override-badge {

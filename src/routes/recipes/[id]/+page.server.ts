@@ -7,6 +7,8 @@ import {
 import type { RecipeExtras } from '$lib/server/db';
 import { parseAndMatchIngredient } from '$lib/server/ingredient-parser';
 import { analyzeStepsSmart } from '$lib/server/step-analyzer';
+import { getSubstitutions } from '$lib/substitutions';
+import type { Substitution } from '$lib/substitutions';
 import type { PageServerLoad, Actions } from './$types';
 
 export const load: PageServerLoad = async ({ locals, params }) => {
@@ -48,6 +50,10 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 					user_override = true;
 				}
 			}
+			// Look up substitutions using known name or parsed name
+			const subLookupName = known_name ?? ri.name;
+			const substitutions = subLookupName ? getSubstitutions(subLookupName) : [];
+
 			return {
 				raw_text: ri.raw_text,
 				quantity: ri.quantity,
@@ -56,7 +62,8 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 				known_ingredient_id: ri.known_ingredient_id,
 				known_name,
 				density_g_per_cup,
-				user_override
+				user_override,
+				substitutions
 			};
 		})
 	);
