@@ -18,12 +18,12 @@ export const actions: Actions = {
 			return fail(400, { error: 'Email and password are required.', email });
 		}
 
-		const user = getUserByEmail(email);
+		const user = await getUserByEmail(email);
 		if (!user || !verifyPassword(user, password)) {
 			return fail(400, { error: 'Invalid email or password.', email });
 		}
 
-		const session = createSession(user.id);
+		const session = await createSession(user.id);
 
 		cookies.set('session_id', session.id, {
 			path: '/',

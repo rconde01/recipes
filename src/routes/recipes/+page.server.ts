@@ -7,7 +7,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		redirect(303, '/login');
 	}
 
-	const recipes = getRecipesByUser(locals.user.id);
+	const recipes = await getRecipesByUser(locals.user.id);
 	return { recipes };
 };
 
@@ -17,7 +17,7 @@ export const actions: Actions = {
 			redirect(303, '/login');
 		}
 
-		const recipe = createRecipe(
+		const recipe = await createRecipe(
 			locals.user.id,
 			'Untitled Recipe',
 			'',
@@ -40,7 +40,7 @@ export const actions: Actions = {
 			return fail(400, { error: 'Recipe ID is required.' });
 		}
 
-		deleteRecipe(id, locals.user.id);
+		await deleteRecipe(id, locals.user.id);
 		redirect(303, '/recipes');
 	}
 };

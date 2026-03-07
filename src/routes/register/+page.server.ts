@@ -32,14 +32,14 @@ export const actions: Actions = {
 			return fail(400, { error: 'Username must be between 3 and 30 characters.', email, username });
 		}
 
-		const existing = getUserByEmail(email);
+		const existing = await getUserByEmail(email);
 		if (existing) {
 			return fail(400, { error: 'An account with this email already exists.', email, username });
 		}
 
 		try {
-			const user = createUser(email, username, password);
-			const session = createSession(user.id);
+			const user = await createUser(email, username, password);
+			const session = await createSession(user.id);
 
 			cookies.set('session_id', session.id, {
 				path: '/',

@@ -4,7 +4,7 @@ This file provides guidance for AI assistants working with the `recipes` reposit
 
 ## Project Overview
 
-A recipe website built with SvelteKit, TypeScript, and Vite. Uses SQLite (via better-sqlite3) for data storage and pnpm as the package manager.
+A recipe website built with SvelteKit, TypeScript, and Vite. Uses SQLite (via Turso/libSQL) for data storage and pnpm as the package manager. Deployed to Vercel.
 
 ## Repository Structure
 
@@ -25,10 +25,12 @@ recipes/
 │   └── routes/
 │       ├── +layout.server.ts           # Root layout data (user session)
 │       ├── +layout.svelte              # Root layout (nav bar)
-│       ├── +page.svelte                # Home page
+│       ├── +page.svelte                # Home/landing page
 │       ├── login/                      # Login page and form action
 │       ├── register/                   # Registration page and form action
-│       └── logout/                     # Logout form action
+│       ├── logout/                     # Logout form action
+│       └── recipes/                    # Recipes list+detail (authenticated)
+│           └── [id]/                   # Single recipe view/edit
 └── static/                             # Static assets
 ```
 
@@ -37,7 +39,8 @@ recipes/
 - **Framework**: SvelteKit (Svelte 5) with TypeScript
 - **Build tool**: Vite
 - **Package manager**: pnpm
-- **Database**: SQLite via better-sqlite3
+- **Database**: SQLite via Turso (@libsql/client); falls back to local `file:recipes.db` for dev
+- **Deployment**: Vercel (@sveltejs/adapter-vercel)
 - **Auth**: Custom session-based (scrypt password hashing, HTTP-only cookies)
 
 ## Commands
@@ -80,9 +83,14 @@ pnpm dev
 
 ### Database
 
-- SQLite database file: `recipes.db` (gitignored).
-- Schema is auto-created on first access (tables: `users`, `sessions`).
-- WAL mode and foreign keys are enabled.
+- Uses `@libsql/client` (Turso) for SQLite over HTTP in production.
+- Falls back to local `file:recipes.db` when `TURSO_DATABASE_URL` is not set (dev mode).
+- Schema is auto-created on server start via `initDb()` in `hooks.server.ts` (tables: `users`, `sessions`, `recipes`).
+
+### Environment Variables
+
+- `TURSO_DATABASE_URL` — Turso database URL (e.g. `libsql://mydb-user.turso.io`). Omit for local dev.
+- `TURSO_AUTH_TOKEN` — Turso auth token for production. Omit for local dev.
 
 ## Conventions
 

@@ -7,12 +7,12 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		redirect(303, '/login');
 	}
 
-	const recipe = getRecipeById(params.id, locals.user.id);
+	const recipe = await getRecipeById(params.id, locals.user.id);
 	if (!recipe) {
 		error(404, 'Recipe not found');
 	}
 
-	const recipes = getRecipesByUser(locals.user.id);
+	const recipes = await getRecipesByUser(locals.user.id);
 
 	return {
 		recipe: {
@@ -43,7 +43,7 @@ export const actions: Actions = {
 		const ingredients = ingredientsRaw.filter((i) => i.length > 0);
 		const instructions = instructionsRaw.filter((i) => i.length > 0);
 
-		updateRecipe(params.id, locals.user.id, title, description, ingredients, instructions);
+		await updateRecipe(params.id, locals.user.id, title, description, ingredients, instructions);
 
 		return { success: true };
 	},
@@ -53,7 +53,7 @@ export const actions: Actions = {
 			redirect(303, '/login');
 		}
 
-		deleteRecipe(params.id, locals.user.id);
+		await deleteRecipe(params.id, locals.user.id);
 		redirect(303, '/recipes');
 	}
 };

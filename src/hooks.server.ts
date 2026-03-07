@@ -1,11 +1,13 @@
 import type { Handle } from '@sveltejs/kit';
-import { getSession } from '$lib/server/db';
+import { initDb, getSession } from '$lib/server/db';
+
+await initDb();
 
 export const handle: Handle = async ({ event, resolve }) => {
 	const sessionId = event.cookies.get('session_id');
 
 	if (sessionId) {
-		const session = getSession(sessionId);
+		const session = await getSession(sessionId);
 		if (session) {
 			event.locals.user = {
 				id: session.user_id,
