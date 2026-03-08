@@ -8,56 +8,8 @@
 	let showAddForm = $state(false);
 	let filterText = $state('');
 	let filterCategory = $state('');
-	let unitMode = $state<'default' | 'preference'>('default');
 
 	const UNIT_OPTIONS = ['', 'g', 'kg', 'oz', 'lb', 'cup', 'tbsp', 'tsp', 'ml', 'l'];
-
-	// Conversion factors to grams
-	const TO_GRAMS: Record<string, number> = {
-		g: 1,
-		kg: 1000,
-		oz: 28.3495,
-		lb: 453.592,
-		ml: 1, // approximate for water-like density
-		l: 1000,
-		tsp: 0, // needs density
-		tbsp: 0, // needs density
-		cup: 0, // needs density
-	};
-
-	// Volume units in cups
-	const TO_CUPS: Record<string, number> = {
-		cup: 1,
-		tbsp: 1 / 16,
-		tsp: 1 / 48,
-		ml: 1 / 236.588,
-		l: 1000 / 236.588,
-	};
-
-	function convertDensity(densityGPerCup: number | null, preferredUnit: string): string {
-		if (densityGPerCup == null || !preferredUnit) return '—';
-		const gPerCup = densityGPerCup;
-
-		if (preferredUnit === 'cup') return `${gPerCup} g`;
-		if (preferredUnit === 'g') return '1 cup';
-		if (preferredUnit === 'kg') return `${(gPerCup / 1000).toFixed(2)} kg`;
-		if (preferredUnit === 'oz') return `${(gPerCup / 28.3495).toFixed(1)} oz`;
-		if (preferredUnit === 'lb') return `${(gPerCup / 453.592).toFixed(2)} lb`;
-		if (preferredUnit === 'tbsp') {
-			const tbspPerCup = 16;
-			const gPerTbsp = gPerCup / tbspPerCup;
-			return `${gPerTbsp.toFixed(1)} g`;
-		}
-		if (preferredUnit === 'tsp') {
-			const tspPerCup = 48;
-			const gPerTsp = gPerCup / tspPerCup;
-			return `${gPerTsp.toFixed(1)} g`;
-		}
-		if (preferredUnit === 'ml') return `${(gPerCup / (gPerCup / 236.588)).toFixed(0)} ml`;
-		if (preferredUnit === 'l') return `${(236.588 / 1000).toFixed(2)} l`;
-
-		return '—';
-	}
 
 	let categories = $derived(() => {
 		const cats = new Set<string>();
@@ -96,17 +48,6 @@
 	<div class="header">
 		<h1>Ingredients Database</h1>
 		<p class="subtitle">{data.ingredients.length} ingredients with density and calorie data</p>
-	</div>
-
-	<div class="unit-toggle">
-		<label class="radio-label">
-			<input type="radio" name="unitMode" value="default" bind:group={unitMode} />
-			<span>Default</span>
-		</label>
-		<label class="radio-label">
-			<input type="radio" name="unitMode" value="preference" bind:group={unitMode} />
-			<span>Preference</span>
-		</label>
 	</div>
 
 	<div class="toolbar">
@@ -172,15 +113,9 @@
 				<tr>
 					<th>Name</th>
 					<th>Category</th>
-					{#if unitMode === 'preference'}
-						<th>Pref. Unit</th>
-						<th class="num">per cup</th>
-						<th class="num">cal / g</th>
-					{:else}
-						<th class="num">g / cup</th>
-						<th class="num">cal / g</th>
-						<th class="num">cal / cup</th>
-					{/if}
+					<th class="num">g / cup</th>
+					<th class="num">cal / g</th>
+					<th class="num">cal / cup</th>
 					<th>Pref. Unit</th>
 					<th class="actions-col">Actions</th>
 				</tr>
@@ -189,7 +124,7 @@
 				{#each filtered() as ingredient (ingredient.id)}
 					{#if editingId === ingredient.id}
 						<tr class="editing-row">
-							<td colspan={unitMode === 'preference' ? 8 : 8}>
+							<td colspan="7">
 								<form method="POST" action="?/update" use:enhance={() => {
 									return async ({ update }) => {
 										await update();
@@ -234,33 +169,15 @@
 						<tr>
 							<td class="name-cell">{ingredient.canonical_name}</td>
 							<td><span class="category-badge">{ingredient.category || '—'}</span></td>
-							{#if unitMode === 'preference'}
-								<td>
-									{#if ingredient.preferred_unit}
-										<span class="unit-badge">{ingredient.preferred_unit}</span>
-									{:else}
-										<span class="no-pref">—</span>
-									{/if}
-								</td>
-								<td class="num">
-									{#if ingredient.preferred_unit && ingredient.density_g_per_cup != null}
-										{convertDensity(ingredient.density_g_per_cup, ingredient.preferred_unit)}
-									{:else}
-										—
-									{/if}
-								</td>
-								<td class="num">{ingredient.calories_per_gram ?? '—'}</td>
-							{:else}
-								<td class="num">{ingredient.density_g_per_cup ?? '—'}</td>
-								<td class="num">{ingredient.calories_per_gram ?? '—'}</td>
-								<td class="num">
-									{#if ingredient.density_g_per_cup != null && ingredient.calories_per_gram != null}
-										{Math.round(ingredient.density_g_per_cup * ingredient.calories_per_gram)}
-									{:else}
-										—
-									{/if}
-								</td>
-							{/if}
+							<td class="num">{ingredient.density_g_per_cup ?? '—'}</td>
+							<td class="num">{ingredient.calories_per_gram ?? '—'}</td>
+							<td class="num">
+								{#if ingredient.density_g_per_cup != null && ingredient.calories_per_gram != null}
+									{Math.round(ingredient.density_g_per_cup * ingredient.calories_per_gram)}
+								{:else}
+									—
+								{/if}
+							</td>
 							<td>
 								{#if ingredient.preferred_unit}
 									<span class="unit-badge">{ingredient.preferred_unit}</span>
@@ -307,31 +224,6 @@
 		margin: 0.25rem 0 0 0;
 		color: #888;
 		font-size: 0.9rem;
-	}
-
-	.unit-toggle {
-		display: flex;
-		gap: 1rem;
-		margin-bottom: 1rem;
-		padding: 0.6rem 1rem;
-		background: #fff;
-		border: 1px solid #e0e0e0;
-		border-radius: 6px;
-	}
-
-	.radio-label {
-		display: flex;
-		align-items: center;
-		gap: 0.35rem;
-		cursor: pointer;
-		font-size: 0.9rem;
-		font-weight: 500;
-	}
-
-	.radio-label input[type='radio'] {
-		accent-color: #e65100;
-		width: 16px;
-		height: 16px;
 	}
 
 	.toolbar {

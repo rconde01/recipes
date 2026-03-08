@@ -11,6 +11,53 @@
 	let ingredients = $state(['']);
 	let instructions = $state(['']);
 
+	// Unit display mode
+	let unitMode = $state<'default' | 'preference'>('default');
+
+	// Convert a quantity+unit to preferred unit using density
+	function convertToPreferred(qty: number | null, unit: string, densityGPerCup: number | null, preferredUnit: string): { qty: string; unit: string } | null {
+		if (qty == null || !preferredUnit || !unit || unit === preferredUnit) return null;
+		if (densityGPerCup == null) return null;
+
+		// Volume units in cups
+		const toCups: Record<string, number> = {
+			cup: 1, tbsp: 1/16, tsp: 1/48, ml: 1/236.588, l: 1000/236.588,
+			'fl oz': 1/8, pint: 2, quart: 4, gallon: 16
+		};
+
+		// Weight units in grams
+		const toGrams: Record<string, number> = {
+			g: 1, kg: 1000, oz: 28.3495, lb: 453.592
+		};
+
+		// Convert source to grams first
+		let grams: number | null = null;
+		if (toGrams[unit] != null) {
+			grams = qty * toGrams[unit];
+		} else if (toCups[unit] != null) {
+			const cups = qty * toCups[unit];
+			grams = cups * densityGPerCup;
+		}
+		if (grams == null) return null;
+
+		// Convert grams to target unit
+		if (toGrams[preferredUnit] != null) {
+			const val = grams / toGrams[preferredUnit];
+			return { qty: formatConvertedQty(val), unit: preferredUnit };
+		} else if (toCups[preferredUnit] != null) {
+			const cups = grams / densityGPerCup;
+			const val = cups / toCups[preferredUnit];
+			return { qty: formatConvertedQty(val), unit: preferredUnit };
+		}
+		return null;
+	}
+
+	function formatConvertedQty(val: number): string {
+		if (val >= 100) return Math.round(val).toString();
+		if (val >= 10) return val.toFixed(1).replace(/\.0$/, '');
+		return val.toFixed(2).replace(/\.?0+$/, '');
+	}
+
 	// Scaler state
 	let scaleFactor = $state(1);
 	let isScaling = $state(false);
@@ -470,10 +517,30 @@
 		{/if}
 
 		<div class="read-section">
-			<h3>Ingredients{#if scaleFactor !== 1} <span class="scale-badge">{scaleFactor}x</span>{/if}</h3>
+			<div class="section-header-row">
+				<h3>Ingredients{#if scaleFactor !== 1} <span class="scale-badge">{scaleFactor}x</span>{/if}</h3>
+				{#if data.parsedIngredients.some((pi: ParsedIngredient) => pi.preferred_unit)}
+					<div class="unit-toggle">
+						<label class="radio-label">
+							<input type="radio" name="unitMode" value="default" bind:group={unitMode} />
+							<span>Default</span>
+						</label>
+						<label class="radio-label">
+							<input type="radio" name="unitMode" value="preference" bind:group={unitMode} />
+							<span>Preference</span>
+						</label>
+					</div>
+				{/if}
+			</div>
 			<ul class="read-list">
-				{#each displayIngredients as ingredient}
-					<li>{ingredient}</li>
+				{#each displayIngredients as ingredient, i}
+					{@const pi = data.parsedIngredients[i]}
+					{@const converted = unitMode === 'preference' && pi ? convertToPreferred(pi.quantity, pi.unit, pi.density_g_per_cup, pi.preferred_unit) : null}
+					{#if converted}
+						<li><span class="converted-ingredient">{ingredient.replace(/^[\d\s\/½¼¾⅓⅔⅛⅜⅝⅞.]+\s*\S+/, `${converted.qty} ${converted.unit}`)}</span></li>
+					{:else}
+						<li>{ingredient}</li>
+					{/if}
 				{/each}
 			</ul>
 		</div>
@@ -521,6 +588,7 @@
 									</td>
 								</tr>
 								{#each items as { idx, pi }}
+								{@const conv = unitMode === 'preference' ? convertToPreferred(pi.quantity, pi.unit, pi.density_g_per_cup, pi.preferred_unit) : null}
 									<tr
 										class:has-subs={pi.substitutions.length > 0}
 										class:expanded={expandedIngredient === idx}
@@ -536,8 +604,8 @@
 												{/if}
 											</span>
 										</td>
-										<td>{pi.quantity != null ? pi.quantity : '—'}</td>
-										<td>{pi.unit || '—'}</td>
+									<td>{conv ? conv.qty : (pi.quantity != null ? pi.quantity : '—')}</td>
+									<td>{conv ? conv.unit : (pi.unit || '—')}</td>
 										<td>
 											<span class="cat-badge" style="background: {CATEGORY_COLORS[pi.foodCategory as IngredientCategory] ?? '#757575'}">{CATEGORY_LABELS[pi.foodCategory as IngredientCategory] ?? pi.foodCategory}</span>
 										</td>
@@ -809,6 +877,39 @@
 		margin: 0;
 		line-height: 1.5;
 		color: #444;
+	}
+
+	.section-header-row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 1rem;
+		flex-wrap: wrap;
+	}
+
+	.unit-toggle {
+		display: flex;
+		gap: 0.75rem;
+	}
+
+	.radio-label {
+		display: flex;
+		align-items: center;
+		gap: 0.25rem;
+		cursor: pointer;
+		font-size: 0.85rem;
+		font-weight: 500;
+		color: #555;
+	}
+
+	.radio-label input[type='radio'] {
+		accent-color: #e65100;
+		width: 14px;
+		height: 14px;
+	}
+
+	.converted-ingredient {
+		color: #e65100;
 	}
 
 	.read-list {

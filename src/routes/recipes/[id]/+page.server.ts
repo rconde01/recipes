@@ -34,7 +34,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
 	// Build a map of known ingredient id -> name + density
 	const knownMap = Object.fromEntries(
-		knownIngredients.map((ki) => [ki.id, { name: ki.canonical_name, density_g_per_cup: ki.density_g_per_cup, category: ki.category }])
+		knownIngredients.map((ki) => [ki.id, { name: ki.canonical_name, density_g_per_cup: ki.density_g_per_cup, category: ki.category, preferred_unit: ki.preferred_unit }])
 	);
 
 	// Enrich parsed ingredients with known ingredient info and user overrides
@@ -42,11 +42,13 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		recipeIngredients.map(async (ri) => {
 			let known_name: string | null = null;
 			let density_g_per_cup: number | null = null;
+			let preferred_unit = '';
 			let user_override = false;
 			if (ri.known_ingredient_id && knownMap[ri.known_ingredient_id]) {
 				const ki = knownMap[ri.known_ingredient_id];
 				known_name = ki.name;
 				density_g_per_cup = ki.density_g_per_cup;
+				preferred_unit = ki.preferred_unit;
 				// Check user override
 				const override = await getUserIngredientOverride(locals.user!.id, ri.known_ingredient_id);
 				if (override?.density_g_per_cup != null) {
@@ -89,6 +91,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 				known_ingredient_id: ri.known_ingredient_id,
 				known_name,
 				density_g_per_cup,
+				preferred_unit,
 				user_override,
 				substitutions,
 				foodCategory,
