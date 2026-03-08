@@ -30,7 +30,9 @@ export const actions: Actions = {
 		if (density !== null && isNaN(density)) return fail(400, { error: 'Invalid density value' });
 		if (calories !== null && isNaN(calories)) return fail(400, { error: 'Invalid calories value' });
 
-		await createKnownIngredient(name, category, density, calories);
+		const preferredUnit = (data.get('preferred_unit') as string)?.trim() || '';
+
+		await createKnownIngredient(name, category, density, calories, preferredUnit);
 		return { success: true };
 	},
 
@@ -42,6 +44,7 @@ export const actions: Actions = {
 		const category = (data.get('category') as string)?.trim() || '';
 		const densityStr = data.get('density') as string;
 		const caloriesStr = data.get('calories') as string;
+		const preferredUnit = (data.get('preferred_unit') as string)?.trim() || '';
 
 		if (!id || !name) return fail(400, { error: 'ID and name are required' });
 
@@ -51,7 +54,7 @@ export const actions: Actions = {
 		if (density !== null && isNaN(density)) return fail(400, { error: 'Invalid density value' });
 		if (calories !== null && isNaN(calories)) return fail(400, { error: 'Invalid calories value' });
 
-		await updateKnownIngredient(id, name, category, density, calories);
+		await updateKnownIngredient(id, name, category, density, calories, preferredUnit);
 		return { success: true };
 	},
 

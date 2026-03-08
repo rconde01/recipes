@@ -68,6 +68,7 @@ export async function initDb() {
 			category TEXT NOT NULL DEFAULT '',
 			density_g_per_cup REAL,
 			calories_per_gram REAL,
+			preferred_unit TEXT NOT NULL DEFAULT '',
 			created_at TEXT NOT NULL DEFAULT (datetime('now'))
 		)`,
 		`CREATE TABLE IF NOT EXISTS user_ingredient_overrides (
@@ -122,6 +123,13 @@ export async function initDb() {
 		} catch {
 			// Column already exists, ignore
 		}
+	}
+
+	// Migrate: add preferred_unit to known_ingredients
+	try {
+		await db.execute(`ALTER TABLE known_ingredients ADD COLUMN preferred_unit TEXT NOT NULL DEFAULT ''`);
+	} catch {
+		// Column already exists, ignore
 	}
 
 	await seedKnownIngredients();
@@ -342,6 +350,7 @@ export interface KnownIngredient {
 	category: string;
 	density_g_per_cup: number | null;
 	calories_per_gram: number | null;
+	preferred_unit: string;
 	created_at: string;
 }
 
@@ -402,15 +411,16 @@ export async function createKnownIngredient(
 	canonicalName: string,
 	category: string,
 	densityGPerCup: number | null,
-	caloriesPerGram: number | null = null
+	caloriesPerGram: number | null = null,
+	preferredUnit: string = ''
 ): Promise<KnownIngredient> {
 	const id = crypto.randomUUID();
 	const now = new Date().toISOString();
 	await db.execute({
-		sql: 'INSERT OR IGNORE INTO known_ingredients (id, canonical_name, category, density_g_per_cup, calories_per_gram, created_at) VALUES (?, ?, ?, ?, ?, ?)',
-		args: [id, canonicalName.toLowerCase(), category, densityGPerCup, caloriesPerGram, now]
+		sql: 'INSERT OR IGNORE INTO known_ingredients (id, canonical_name, category, density_g_per_cup, calories_per_gram, preferred_unit, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+		args: [id, canonicalName.toLowerCase(), category, densityGPerCup, caloriesPerGram, preferredUnit, now]
 	});
-	return { id, canonical_name: canonicalName.toLowerCase(), category, density_g_per_cup: densityGPerCup, calories_per_gram: caloriesPerGram, created_at: now };
+	return { id, canonical_name: canonicalName.toLowerCase(), category, density_g_per_cup: densityGPerCup, calories_per_gram: caloriesPerGram, preferred_unit: preferredUnit, created_at: now };
 }
 
 export async function updateKnownIngredient(
@@ -418,11 +428,12 @@ export async function updateKnownIngredient(
 	canonicalName: string,
 	category: string,
 	densityGPerCup: number | null,
-	caloriesPerGram: number | null
+	caloriesPerGram: number | null,
+	preferredUnit: string = ''
 ): Promise<void> {
 	await db.execute({
-		sql: 'UPDATE known_ingredients SET canonical_name = ?, category = ?, density_g_per_cup = ?, calories_per_gram = ? WHERE id = ?',
-		args: [canonicalName.toLowerCase(), category, densityGPerCup, caloriesPerGram, id]
+		sql: 'UPDATE known_ingredients SET canonical_name = ?, category = ?, density_g_per_cup = ?, calories_per_gram = ?, preferred_unit = ? WHERE id = ?',
+		args: [canonicalName.toLowerCase(), category, densityGPerCup, caloriesPerGram, preferredUnit, id]
 	});
 }
 
@@ -485,40 +496,40 @@ export async function setUserIngredientOverride(
 
 // Seed default known ingredients
 export async function seedKnownIngredients(): Promise<void> {
-	const defaults: { name: string; category: string; density: number; cal: number | null }[] = [
-		{ name: 'all-purpose flour', category: 'flour', density: 125, cal: 3.64 },
-		{ name: 'bread flour', category: 'flour', density: 127, cal: 3.61 },
-		{ name: 'cake flour', category: 'flour', density: 114, cal: 3.62 },
-		{ name: 'whole wheat flour', category: 'flour', density: 128, cal: 3.40 },
-		{ name: 'granulated sugar', category: 'sweetener', density: 200, cal: 3.87 },
-		{ name: 'brown sugar', category: 'sweetener', density: 220, cal: 3.80 },
-		{ name: 'powdered sugar', category: 'sweetener', density: 120, cal: 3.89 },
-		{ name: 'butter', category: 'dairy', density: 227, cal: 7.17 },
-		{ name: 'milk', category: 'dairy', density: 244, cal: 0.61 },
-		{ name: 'heavy cream', category: 'dairy', density: 238, cal: 3.40 },
-		{ name: 'sour cream', category: 'dairy', density: 230, cal: 1.98 },
-		{ name: 'cream cheese', category: 'dairy', density: 232, cal: 3.42 },
-		{ name: 'vegetable oil', category: 'oil', density: 218, cal: 8.84 },
-		{ name: 'olive oil', category: 'oil', density: 216, cal: 8.84 },
-		{ name: 'honey', category: 'sweetener', density: 340, cal: 3.04 },
-		{ name: 'maple syrup', category: 'sweetener', density: 312, cal: 2.60 },
-		{ name: 'cocoa powder', category: 'baking', density: 86, cal: 2.28 },
-		{ name: 'cornstarch', category: 'baking', density: 128, cal: 3.81 },
-		{ name: 'baking powder', category: 'baking', density: 230, cal: 0.53 },
-		{ name: 'baking soda', category: 'baking', density: 220, cal: 0 },
-		{ name: 'salt', category: 'seasoning', density: 288, cal: 0 },
-		{ name: 'rolled oats', category: 'grain', density: 90, cal: 3.79 },
-		{ name: 'rice', category: 'grain', density: 185, cal: 3.65 },
-		{ name: 'peanut butter', category: 'nut', density: 258, cal: 5.88 },
-		{ name: 'almond flour', category: 'flour', density: 96, cal: 5.71 },
-		{ name: 'coconut flour', category: 'flour', density: 112, cal: 4.00 },
-		{ name: 'water', category: 'liquid', density: 237, cal: 0 },
+	const defaults: { name: string; category: string; density: number; cal: number | null; pref: string }[] = [
+		{ name: 'all-purpose flour', category: 'flour', density: 125, cal: 3.64, pref: 'g' },
+		{ name: 'bread flour', category: 'flour', density: 127, cal: 3.61, pref: 'g' },
+		{ name: 'cake flour', category: 'flour', density: 114, cal: 3.62, pref: 'g' },
+		{ name: 'whole wheat flour', category: 'flour', density: 128, cal: 3.40, pref: 'g' },
+		{ name: 'granulated sugar', category: 'sweetener', density: 200, cal: 3.87, pref: 'g' },
+		{ name: 'brown sugar', category: 'sweetener', density: 220, cal: 3.80, pref: 'g' },
+		{ name: 'powdered sugar', category: 'sweetener', density: 120, cal: 3.89, pref: 'g' },
+		{ name: 'butter', category: 'dairy', density: 227, cal: 7.17, pref: 'g' },
+		{ name: 'milk', category: 'dairy', density: 244, cal: 0.61, pref: 'cup' },
+		{ name: 'heavy cream', category: 'dairy', density: 238, cal: 3.40, pref: 'cup' },
+		{ name: 'sour cream', category: 'dairy', density: 230, cal: 1.98, pref: 'cup' },
+		{ name: 'cream cheese', category: 'dairy', density: 232, cal: 3.42, pref: 'g' },
+		{ name: 'vegetable oil', category: 'oil', density: 218, cal: 8.84, pref: 'cup' },
+		{ name: 'olive oil', category: 'oil', density: 216, cal: 8.84, pref: 'cup' },
+		{ name: 'honey', category: 'sweetener', density: 340, cal: 3.04, pref: 'cup' },
+		{ name: 'maple syrup', category: 'sweetener', density: 312, cal: 2.60, pref: 'cup' },
+		{ name: 'cocoa powder', category: 'baking', density: 86, cal: 2.28, pref: 'g' },
+		{ name: 'cornstarch', category: 'baking', density: 128, cal: 3.81, pref: 'g' },
+		{ name: 'baking powder', category: 'baking', density: 230, cal: 0.53, pref: 'tsp' },
+		{ name: 'baking soda', category: 'baking', density: 220, cal: 0, pref: 'tsp' },
+		{ name: 'salt', category: 'seasoning', density: 288, cal: 0, pref: 'tsp' },
+		{ name: 'rolled oats', category: 'grain', density: 90, cal: 3.79, pref: 'g' },
+		{ name: 'rice', category: 'grain', density: 185, cal: 3.65, pref: 'g' },
+		{ name: 'peanut butter', category: 'nut', density: 258, cal: 5.88, pref: 'g' },
+		{ name: 'almond flour', category: 'flour', density: 96, cal: 5.71, pref: 'g' },
+		{ name: 'coconut flour', category: 'flour', density: 112, cal: 4.00, pref: 'g' },
+		{ name: 'water', category: 'liquid', density: 237, cal: 0, pref: 'cup' },
 	];
 
 	for (const d of defaults) {
 		await db.execute({
-			sql: 'INSERT OR IGNORE INTO known_ingredients (id, canonical_name, category, density_g_per_cup, calories_per_gram) VALUES (?, ?, ?, ?, ?)',
-			args: [crypto.randomUUID(), d.name, d.category, d.density, d.cal]
+			sql: 'INSERT OR IGNORE INTO known_ingredients (id, canonical_name, category, density_g_per_cup, calories_per_gram, preferred_unit) VALUES (?, ?, ?, ?, ?, ?)',
+			args: [crypto.randomUUID(), d.name, d.category, d.density, d.cal, d.pref]
 		});
 	}
 }
