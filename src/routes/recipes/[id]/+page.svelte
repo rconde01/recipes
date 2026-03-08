@@ -387,7 +387,7 @@
 					<tr><th>Total Time</th><td>{formatTime(data.recipe.total_time)}</td></tr>
 				{/if}
 				{#if data.recipe.yield}
-					<tr><th>Yield</th><td>{formatYield(data.recipe.yield)}</td></tr>
+					<tr><th>Yield</th><td>{scaleFactor !== 1 ? formatYield(data.recipe.yield).replace(/\d+(\.\d+)?/g, (m) => { const v = parseFloat(m) * scaleFactor; return v % 1 === 0 ? String(v) : v.toFixed(1); }) : formatYield(data.recipe.yield)}{#if scaleFactor !== 1} <span class="scale-badge">{scaleFactor}x</span>{/if}</td></tr>
 				{/if}
 				{#if data.recipe.category}
 					<tr><th>Category</th><td>{data.recipe.category}</td></tr>
