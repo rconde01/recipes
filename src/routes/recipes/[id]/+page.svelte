@@ -1502,18 +1502,18 @@
 	/* Mobile layout */
 	@media (max-width: 768px) {
 		.recipes-layout {
+			display: block;
 			position: relative;
-			overflow-x: hidden;
 		}
 
 		aside.recipe-list {
-			position: absolute;
+			position: fixed;
 			top: 0;
 			left: 0;
 			width: 100%;
-			min-width: 100%;
 			height: 100%;
-			z-index: 2;
+			z-index: 200;
+			background: #fff;
 			transform: translateX(0);
 			transition: transform 0.3s ease;
 			overflow-y: auto;
@@ -1522,6 +1522,7 @@
 		/* When detail is shown, slide the list off-screen to the left */
 		.recipes-layout.mobile-show-detail aside.recipe-list {
 			transform: translateX(-100%);
+			pointer-events: none;
 		}
 
 		section.recipe-detail {
