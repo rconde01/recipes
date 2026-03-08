@@ -607,7 +607,6 @@
 	.recipes-layout {
 		display: flex;
 		gap: 0;
-		min-height: calc(100vh - 73px);
 		margin: 0 auto;
 		max-width: none;
 	}
@@ -678,7 +677,6 @@
 	section.recipe-detail {
 		flex: 1;
 		padding: 2rem;
-		overflow-y: auto;
 	}
 
 	.detail-header {
