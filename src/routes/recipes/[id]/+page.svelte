@@ -939,6 +939,11 @@
 		overflow-wrap: break-word;
 	}
 
+	.ingredients-table td:last-child {
+		word-break: normal;
+		overflow-wrap: break-word;
+	}
+
 	.ingredients-table tr:hover {
 		background: #fafafa;
 	}
