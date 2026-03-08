@@ -567,7 +567,8 @@
 					{@const converted = unitMode === 'preference' && pi ? convertToPreferred(pi.quantity, pi.unit, pi.density_g_per_cup, pi.preferred_unit) : null}
 					{#if converted}
 						{@const defaultText = pi ? `${pi.quantity ?? ''}${pi.unit ? ' ' + pi.unit : ''}`.trim() : ''}
-						<li><span class="converted-ingredient">{ingredient.replace(/^[\d\s\/½¼¾⅓⅔⅛⅜⅝⅞.]+\s*\S+/, `${converted.qty} ${converted.unit}`)}{#if defaultText} <span class="original-unit">({defaultText})</span>{/if}</span></li>
+						{@const suffix = defaultText ? ` (${defaultText})` : ''}
+						<li><span class="converted-ingredient">{ingredient.replace(/^[\d\s\/½¼¾⅓⅔⅛⅜⅝⅞.]+\s*\S+/, `${converted.qty} ${converted.unit}${suffix}`)}</span></li>
 					{:else}
 						<li>{ingredient}</li>
 					{/if}
@@ -943,10 +944,6 @@
 		color: #e65100;
 	}
 
-	.original-unit {
-		color: #888;
-		font-size: 0.85em;
-	}
 
 	.read-list {
 		margin: 0;
