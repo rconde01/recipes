@@ -151,7 +151,7 @@
 
 	// Ingredient sort mode
 	type SortMode = 'category' | 'order-used' | 'original';
-	let sortMode = $state<SortMode>('category');
+	let sortMode = $state<SortMode>('order-used');
 
 	// Group ingredients by food category or sort by order used
 	let groupedIngredients = $derived(() => {
