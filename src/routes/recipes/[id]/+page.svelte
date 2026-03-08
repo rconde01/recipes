@@ -125,7 +125,7 @@
 	}
 
 	function autoResize(el: HTMLTextAreaElement) {
-		el.style.height = 'auto';
+		el.style.height = '0';
 		el.style.height = el.scrollHeight + 'px';
 	}
 
@@ -1275,6 +1275,7 @@
 		font-family: inherit;
 		resize: none;
 		overflow: hidden;
+		box-sizing: border-box;
 	}
 
 
