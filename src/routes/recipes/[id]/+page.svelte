@@ -7,6 +7,7 @@
 
 	let { data, form } = $props<{ data: PageData; form: ActionData }>();
 
+	let editing = $state(false);
 	let ingredients = $state(['']);
 	let instructions = $state(['']);
 
@@ -272,59 +273,66 @@
 			<p class="success">Recipe saved.</p>
 		{/if}
 
-		<form method="POST" action="?/save">
-			<div class="detail-header">
-				<div class="header-top">
-					<input type="text" name="title" value={data.recipe.title} placeholder="Recipe title" class="title-input" required />
-					<div class="header-actions">
-						<button type="submit" class="btn-save">Save</button>
-						<button type="submit" formaction="?/delete" class="btn-delete" onclick={(e) => { if (!confirm('Delete this recipe?')) e.preventDefault(); }}>Delete</button>
-					</div>
-				</div>
-				<div class="header-meta">
-					<span class="recipe-type-badge" style="background: {data.recipeTypeColor}">{data.recipeTypeLabel}</span>
-					<select name="recipe_type" class="recipe-type-select" value={data.recipeType}>
-						{#each data.allRecipeTypes as rt}
-							<option value={rt.value} selected={rt.value === data.recipeType}>{rt.label}</option>
-						{/each}
-					</select>
+		<div class="detail-header">
+			<div class="header-top">
+				<h1 class="title-display">{data.recipe.title}</h1>
+				<div class="header-actions">
+					{#if !editing}
+						<button type="button" class="btn-edit" onclick={() => editing = true}>Edit</button>
+					{/if}
 				</div>
 			</div>
+			<div class="header-meta">
+				<span class="recipe-type-badge" style="background: {data.recipeTypeColor}">{data.recipeTypeLabel}</span>
+			</div>
+		</div>
 
-			{#if data.recipe.image_url}
-				<div class="recipe-image">
-					<img src={data.recipe.image_url} alt={data.recipe.title} />
-				</div>
-			{/if}
+		{#if data.recipe.image_url}
+			<div class="recipe-image">
+				<img src={data.recipe.image_url} alt={data.recipe.title} />
+			</div>
+		{/if}
 
-			<table class="recipe-meta">
-				<tbody>
-					{#if data.recipe.source_url}
-						<tr>
-							<th>Source</th>
-							<td><a href={data.recipe.source_url} target="_blank" rel="noopener">{data.recipe.source_url}</a></td>
-						</tr>
-					{/if}
-					{#if data.recipe.prep_time}
-						<tr><th>Prep Time</th><td>{formatTime(data.recipe.prep_time)}</td></tr>
-					{/if}
-					{#if data.recipe.cook_time}
-						<tr><th>Cook Time</th><td>{formatTime(data.recipe.cook_time)}</td></tr>
-					{/if}
-					{#if data.recipe.total_time}
-						<tr><th>Total Time</th><td>{formatTime(data.recipe.total_time)}</td></tr>
-					{/if}
-					{#if data.recipe.yield}
-						<tr><th>Yield</th><td>{formatYield(data.recipe.yield)}</td></tr>
-					{/if}
-					{#if data.recipe.category}
-						<tr><th>Category</th><td>{data.recipe.category}</td></tr>
-					{/if}
-					{#if data.recipe.cuisine}
-						<tr><th>Cuisine</th><td>{data.recipe.cuisine}</td></tr>
-					{/if}
-				</tbody>
-			</table>
+		<table class="recipe-meta">
+			<tbody>
+				{#if data.recipe.source_url}
+					<tr>
+						<th>Source</th>
+						<td><a href={data.recipe.source_url} target="_blank" rel="noopener">{data.recipe.source_url}</a></td>
+					</tr>
+				{/if}
+				{#if data.recipe.prep_time}
+					<tr><th>Prep Time</th><td>{formatTime(data.recipe.prep_time)}</td></tr>
+				{/if}
+				{#if data.recipe.cook_time}
+					<tr><th>Cook Time</th><td>{formatTime(data.recipe.cook_time)}</td></tr>
+				{/if}
+				{#if data.recipe.total_time}
+					<tr><th>Total Time</th><td>{formatTime(data.recipe.total_time)}</td></tr>
+				{/if}
+				{#if data.recipe.yield}
+					<tr><th>Yield</th><td>{formatYield(data.recipe.yield)}</td></tr>
+				{/if}
+				{#if data.recipe.category}
+					<tr><th>Category</th><td>{data.recipe.category}</td></tr>
+				{/if}
+				{#if data.recipe.cuisine}
+					<tr><th>Cuisine</th><td>{data.recipe.cuisine}</td></tr>
+				{/if}
+			</tbody>
+		</table>
+
+		{#if editing}
+		<form method="POST" action="?/save">
+			<input type="text" name="title" value={data.recipe.title} placeholder="Recipe title" class="title-input" required />
+
+			<div class="header-meta" style="margin-bottom: 1rem;">
+				<select name="recipe_type" class="recipe-type-select" value={data.recipeType}>
+					{#each data.allRecipeTypes as rt}
+						<option value={rt.value} selected={rt.value === data.recipeType}>{rt.label}</option>
+					{/each}
+				</select>
+			</div>
 
 			<!-- Hidden fields for extras so they persist on save -->
 			<input type="hidden" name="source_url" value={data.recipe.source_url} />
@@ -336,82 +344,6 @@
 			<input type="hidden" name="cuisine" value={data.recipe.cuisine} />
 			<input type="hidden" name="image_url" value={data.recipe.image_url} />
 
-			<!-- Recipe Scaler -->
-			<div class="scaler-bar">
-				<span class="scaler-label">Scale Recipe</span>
-				<div class="scaler-presets">
-					{#each [0.5, 1, 1.5, 2, 3, 4] as preset}
-						<button
-							type="button"
-							class="scale-preset"
-							class:active={scaleFactor === preset && !scaleByIngredient}
-							onclick={() => { scaleByIngredient = false; scaleFactor = preset; }}
-						>{preset}x</button>
-					{/each}
-				</div>
-				<div class="scaler-custom">
-					<input
-						type="number"
-						min="0.25"
-						max="100"
-						step="0.25"
-						bind:value={scaleFactor}
-						class="scale-input"
-					/>
-					<span class="scale-x">x</span>
-				</div>
-				{#if scalableIngredients.length > 0}
-					<button
-						type="button"
-						class="scale-preset"
-						class:active={scaleByIngredient}
-						onclick={() => scaleByIngredient = !scaleByIngredient}
-					>By ingredient</button>
-				{/if}
-				{#if scaleFactor !== 1}
-					<button type="button" class="btn-ai-scale" disabled={isScaling} onclick={triggerAiScale}>
-						{isScaling ? 'Scaling...' : 'AI Scale'}
-					</button>
-					<button type="button" class="scale-reset" onclick={() => { scaleFactor = 1; scaleByIngredient = false; selectedIngredientIdx = -1; targetIngredientQty = ''; }}>Reset</button>
-				{/if}
-				{#if scaleFactor !== 1}
-					<span class="scale-status">
-						{#if aiScaleResult && aiScaleResult.factor === scaleFactor}
-							AI-scaled
-						{:else}
-							locally scaled
-						{/if}
-					</span>
-				{/if}
-			</div>
-			{#if scaleByIngredient && scalableIngredients.length > 0}
-				<div class="scale-by-ingredient">
-					<span class="scaler-label">Scale to:</span>
-					<input
-						type="number"
-						min="0.01"
-						step="0.25"
-						bind:value={targetIngredientQty}
-						oninput={updateFactorFromIngredient}
-						class="scale-input"
-						placeholder="qty"
-					/>
-					<select
-						class="ingredient-select"
-						bind:value={selectedIngredientIdx}
-						onchange={() => { if (targetIngredientQty) updateFactorFromIngredient(); }}
-					>
-						<option value={-1}>Choose ingredient...</option>
-						{#each scalableIngredients as { idx, pi }}
-							<option value={idx}>{pi.quantity} {pi.unit} {pi.name || pi.raw_text}</option>
-						{/each}
-					</select>
-					{#if scaleFactor !== 1 && selectedIngredientIdx >= 0}
-						<span class="scale-factor-display">= {scaleFactor.toFixed(2)}x</span>
-					{/if}
-				</div>
-			{/if}
-
 			<label class="field">
 				Description
 				<textarea name="description" rows="1" placeholder="Brief description..." oninput={(e) => autoResize(e.currentTarget)}>{data.recipe.description}</textarea>
@@ -419,21 +351,143 @@
 
 			<div class="field">
 				<div class="field-header">
-					<span>Ingredients{#if scaleFactor !== 1} <span class="scale-badge">{scaleFactor}x</span>{/if}</span>
+					<span>Ingredients</span>
 					<button type="button" class="btn-add" onclick={addIngredient}>+ Add</button>
 				</div>
 				{#each ingredients as ingredient, i}
 					<div class="list-item">
 						<textarea name="ingredients" rows="1" placeholder="e.g. 2 cups flour" oninput={(e) => autoResize(e.currentTarget)}>{ingredient}</textarea>
-						{#if scaleFactor !== 1 && displayIngredients[i] && displayIngredients[i] !== ingredient}
-							<span class="scaled-value" title="Scaled to {scaleFactor}x">{displayIngredients[i]}</span>
-						{/if}
 						<button type="button" class="btn-remove" onclick={() => removeIngredient(i)}>&times;</button>
 					</div>
 				{/each}
 			</div>
 
-			{#if data.parsedIngredients.length > 0}
+			<div class="field">
+				<div class="field-header">
+					<span>Instructions</span>
+					<button type="button" class="btn-add" onclick={addInstruction}>+ Add</button>
+				</div>
+				{#each instructions as instruction, i}
+					<div class="list-item">
+						<span class="step-num">{i + 1}.</span>
+						<div class="instruction-wrapper">
+							<textarea name="instructions" rows="1" placeholder="Describe this step..." oninput={(e) => autoResize(e.currentTarget)}>{instruction}</textarea>
+						</div>
+						<button type="button" class="btn-remove" onclick={() => removeInstruction(i)}>&times;</button>
+					</div>
+				{/each}
+			</div>
+
+			<div class="edit-actions">
+				<button type="submit" class="btn-save">Save</button>
+				<button type="button" class="btn-cancel" onclick={() => editing = false}>Cancel</button>
+				<button type="submit" formaction="?/delete" class="btn-delete" onclick={(e) => { if (!confirm('Delete this recipe?')) e.preventDefault(); }}>Delete</button>
+			</div>
+		</form>
+		{:else}
+
+		<!-- Recipe Scaler -->
+		<div class="scaler-bar">
+			<span class="scaler-label">Scale Recipe</span>
+			<div class="scaler-presets">
+				{#each [0.5, 1, 1.5, 2, 3, 4] as preset}
+					<button
+						type="button"
+						class="scale-preset"
+						class:active={scaleFactor === preset && !scaleByIngredient}
+						onclick={() => { scaleByIngredient = false; scaleFactor = preset; }}
+					>{preset}x</button>
+				{/each}
+			</div>
+			<div class="scaler-custom">
+				<input
+					type="number"
+					min="0.25"
+					max="100"
+					step="0.25"
+					bind:value={scaleFactor}
+					class="scale-input"
+				/>
+				<span class="scale-x">x</span>
+			</div>
+			{#if scalableIngredients.length > 0}
+				<button
+					type="button"
+					class="scale-preset"
+					class:active={scaleByIngredient}
+					onclick={() => scaleByIngredient = !scaleByIngredient}
+				>By ingredient</button>
+			{/if}
+			{#if scaleFactor !== 1}
+				<button type="button" class="btn-ai-scale" disabled={isScaling} onclick={triggerAiScale}>
+					{isScaling ? 'Scaling...' : 'AI Scale'}
+				</button>
+				<button type="button" class="scale-reset" onclick={() => { scaleFactor = 1; scaleByIngredient = false; selectedIngredientIdx = -1; targetIngredientQty = ''; }}>Reset</button>
+			{/if}
+			{#if scaleFactor !== 1}
+				<span class="scale-status">
+					{#if aiScaleResult && aiScaleResult.factor === scaleFactor}
+						AI-scaled
+					{:else}
+						locally scaled
+					{/if}
+				</span>
+			{/if}
+		</div>
+		{#if scaleByIngredient && scalableIngredients.length > 0}
+			<div class="scale-by-ingredient">
+				<span class="scaler-label">Scale to:</span>
+				<input
+					type="number"
+					min="0.01"
+					step="0.25"
+					bind:value={targetIngredientQty}
+					oninput={updateFactorFromIngredient}
+					class="scale-input"
+					placeholder="qty"
+				/>
+				<select
+					class="ingredient-select"
+					bind:value={selectedIngredientIdx}
+					onchange={() => { if (targetIngredientQty) updateFactorFromIngredient(); }}
+				>
+					<option value={-1}>Choose ingredient...</option>
+					{#each scalableIngredients as { idx, pi }}
+						<option value={idx}>{pi.quantity} {pi.unit} {pi.name || pi.raw_text}</option>
+					{/each}
+				</select>
+				{#if scaleFactor !== 1 && selectedIngredientIdx >= 0}
+					<span class="scale-factor-display">= {scaleFactor.toFixed(2)}x</span>
+				{/if}
+			</div>
+		{/if}
+
+		{#if data.recipe.description}
+			<div class="read-section">
+				<h3>Description</h3>
+				<p>{data.recipe.description}</p>
+			</div>
+		{/if}
+
+		<div class="read-section">
+			<h3>Ingredients{#if scaleFactor !== 1} <span class="scale-badge">{scaleFactor}x</span>{/if}</h3>
+			<ul class="read-list">
+				{#each displayIngredients as ingredient}
+					<li>{ingredient}</li>
+				{/each}
+			</ul>
+		</div>
+
+		<div class="read-section">
+			<h3>Instructions{#if scaleFactor !== 1} <span class="scale-badge">{scaleFactor}x</span>{/if}</h3>
+			<ol class="read-list">
+				{#each displayInstructions as instruction}
+					<li>{instruction}</li>
+				{/each}
+			</ol>
+		</div>
+
+		{#if data.parsedIngredients.length > 0}
 				<div class="field">
 					<div class="field-header">
 						<span>Ingredient Breakdown</span>
@@ -521,26 +575,7 @@
 					</table>
 				</div>
 			{/if}
-
-			<div class="field">
-				<div class="field-header">
-					<span>Instructions{#if scaleFactor !== 1} <span class="scale-badge">{scaleFactor}x</span>{/if}</span>
-					<button type="button" class="btn-add" onclick={addInstruction}>+ Add</button>
-				</div>
-				{#each instructions as instruction, i}
-					<div class="list-item">
-						<span class="step-num">{i + 1}.</span>
-						<div class="instruction-wrapper">
-							<textarea name="instructions" rows="1" placeholder="Describe this step..." oninput={(e) => autoResize(e.currentTarget)}>{instruction}</textarea>
-							{#if scaleFactor !== 1 && displayInstructions[i] && displayInstructions[i] !== instruction}
-								<div class="scaled-instruction">{displayInstructions[i]}</div>
-							{/if}
-						</div>
-						<button type="button" class="btn-remove" onclick={() => removeInstruction(i)}>&times;</button>
-					</div>
-				{/each}
-			</div>
-		</form>
+		{/if}
 
 		{#if data.timelineSteps.length > 0}
 
@@ -712,6 +747,79 @@
 		display: flex;
 		align-items: center;
 		gap: 1rem;
+	}
+
+	.title-display {
+		flex: 1;
+		margin: 0;
+		font-size: 1.5rem;
+		font-weight: 700;
+		min-width: 0;
+		word-break: break-word;
+	}
+
+	.btn-edit {
+		background: none;
+		border: 1px solid #e65100;
+		color: #e65100;
+		padding: 0.4rem 1rem;
+		border-radius: 4px;
+		cursor: pointer;
+		font-weight: 600;
+		font-size: 0.9rem;
+		white-space: nowrap;
+	}
+
+	.btn-edit:hover {
+		background: #fff3e0;
+	}
+
+	.btn-cancel {
+		background: none;
+		border: 1px solid #ccc;
+		padding: 0.5rem 1rem;
+		border-radius: 4px;
+		cursor: pointer;
+		font-weight: 500;
+	}
+
+	.btn-cancel:hover {
+		background: #f5f5f5;
+	}
+
+	.edit-actions {
+		display: flex;
+		gap: 0.5rem;
+		margin-top: 1rem;
+		padding-top: 1rem;
+		border-top: 1px solid #e0e0e0;
+	}
+
+	.read-section {
+		margin-bottom: 1.5rem;
+	}
+
+	.read-section h3 {
+		margin: 0 0 0.5rem 0;
+		font-size: 1rem;
+		font-weight: 600;
+	}
+
+	.read-section p {
+		margin: 0;
+		line-height: 1.5;
+		color: #444;
+	}
+
+	.read-list {
+		margin: 0;
+		padding-left: 1.25rem;
+		line-height: 1.6;
+		color: #444;
+	}
+
+	.read-list li {
+		margin-bottom: 0.25rem;
 	}
 
 	.header-meta {
