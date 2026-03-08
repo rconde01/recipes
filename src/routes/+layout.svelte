@@ -43,6 +43,7 @@
 	nav {
 		background: #fff;
 		border-bottom: 1px solid #e0e0e0;
+		padding-top: env(safe-area-inset-top);
 	}
 
 	.nav-bar {
@@ -50,6 +51,8 @@
 		justify-content: space-between;
 		align-items: center;
 		padding: 0.75rem 1rem;
+		padding-left: max(1rem, env(safe-area-inset-left));
+		padding-right: max(1rem, env(safe-area-inset-right));
 	}
 
 	.brand {
