@@ -40,9 +40,11 @@
 
 	nav {
 		display: flex;
+		flex-wrap: wrap;
 		justify-content: space-between;
 		align-items: center;
-		padding: 1rem 2rem;
+		padding: 0.75rem 1rem;
+		gap: 0.5rem;
 		background: #fff;
 		border-bottom: 1px solid #e0e0e0;
 	}
@@ -50,13 +52,15 @@
 	.nav-links {
 		display: flex;
 		align-items: center;
-		gap: 1.5rem;
+		gap: 1rem;
 	}
 
 	nav a {
 		color: #333;
 		text-decoration: none;
 		font-weight: 600;
+		white-space: nowrap;
+		font-size: 0.95rem;
 	}
 
 	nav a:hover {
@@ -66,7 +70,12 @@
 	nav div {
 		display: flex;
 		align-items: center;
-		gap: 1rem;
+		gap: 0.75rem;
+	}
+
+	nav span {
+		white-space: nowrap;
+		font-size: 0.95rem;
 	}
 
 	nav button {
@@ -75,6 +84,27 @@
 		padding: 0.4rem 0.8rem;
 		border-radius: 4px;
 		cursor: pointer;
+		white-space: nowrap;
+	}
+
+	@media (max-width: 480px) {
+		nav {
+			padding: 0.5rem 0.75rem;
+			gap: 0.25rem 0.5rem;
+		}
+
+		.nav-links {
+			gap: 0.75rem;
+		}
+
+		nav a, nav span {
+			font-size: 0.85rem;
+		}
+
+		nav button {
+			font-size: 0.85rem;
+			padding: 0.3rem 0.6rem;
+		}
 	}
 
 	main {
