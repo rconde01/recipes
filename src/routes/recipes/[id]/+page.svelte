@@ -447,10 +447,10 @@
 					<table class="ingredients-table">
 						<thead>
 							<tr>
-								<th>Category</th>
-								<th>Qty</th>
-								<th>Unit</th>
-								<th>Ingredient</th>
+								<th style="width: 25%">Category</th>
+								<th style="width: 15%">Qty</th>
+								<th style="width: 15%">Unit</th>
+								<th style="width: 45%">Ingredient</th>
 							</tr>
 						</thead>
 						<tbody>
@@ -807,6 +807,7 @@
 		border-collapse: collapse;
 		font-size: 0.9rem;
 		margin-top: 0.5rem;
+		table-layout: fixed;
 	}
 
 	.ingredients-table th {
@@ -824,6 +825,8 @@
 	.ingredients-table td {
 		padding: 0.4rem 0.75rem;
 		border-bottom: 1px solid #f0f0f0;
+		word-break: break-word;
+		overflow-wrap: break-word;
 	}
 
 	.ingredients-table tr:hover {
