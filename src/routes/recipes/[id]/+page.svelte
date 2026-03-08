@@ -987,6 +987,7 @@
 
 	.instruction-wrapper {
 		flex: 1;
+		min-width: 0;
 		display: flex;
 		flex-direction: column;
 		gap: 0.3rem;
@@ -1302,19 +1303,26 @@
 		display: flex;
 		align-items: start;
 		gap: 0.5rem;
-		flex-wrap: wrap;
 	}
 
-	.list-item input,
-	.list-item textarea {
-		flex: 1 1 100%;
+	.list-item > input,
+	.list-item > textarea {
+		flex: 1;
 		min-width: 0;
 		padding: 0.5rem;
 		border: 1px solid #ccc;
 		border-radius: 4px;
 		font-size: 0.95rem;
 		font-family: inherit;
-		word-break: break-word;
+	}
+
+	.instruction-wrapper textarea {
+		width: 100%;
+		padding: 0.5rem;
+		border: 1px solid #ccc;
+		border-radius: 4px;
+		font-size: 0.95rem;
+		font-family: inherit;
 	}
 
 	.step-num {
