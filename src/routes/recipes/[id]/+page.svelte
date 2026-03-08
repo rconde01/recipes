@@ -30,15 +30,28 @@
 
 	// Auto-convert based on ingredient preference and user's weight unit setting
 	function convertToPreferred(qty: number | null, unit: string, densityGPerCup: number | null, preferredUnit: string): { qty: string; unit: string } | null {
-		if (qty == null || !preferredUnit || !unit) return null;
+		if (qty == null || !unit) return null;
+
+		const sourceIsVolume = isVolumeUnit(unit);
+		const sourceIsWeight = isWeightUnit(unit);
+
+		// No ingredient preference set — still normalize weight units to user's preferred abbreviation
+		if (!preferredUnit) {
+			if (sourceIsWeight) {
+				const targetUnit = data.weightPreference || 'g';
+				if (unit === targetUnit) return null;
+				const grams = qty * toGrams[unit];
+				const val = grams / toGrams[targetUnit];
+				return { qty: formatConvertedQty(val, targetUnit), unit: targetUnit };
+			}
+			return null;
+		}
+
 		if (densityGPerCup == null) return null;
 
 		const wantWeight = preferredUnit === 'weight';
 		const wantVolume = preferredUnit === 'volume';
 		if (!wantWeight && !wantVolume) return null;
-
-		const sourceIsVolume = isVolumeUnit(unit);
-		const sourceIsWeight = isWeightUnit(unit);
 
 		if (wantWeight) {
 			const targetUnit = data.weightPreference || 'g';
