@@ -73,15 +73,32 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			}
 
 			// Find first step that mentions this ingredient
-			const searchName = (ri.name || known_name || '').toLowerCase();
+			// Try multiple search terms: full parsed name, known name, and the
+			// last significant word (e.g. "flour" from "all-purpose flour")
+			const candidates = new Set<string>();
+			for (const raw of [ri.name, known_name]) {
+				if (!raw) continue;
+				const lower = raw.toLowerCase().trim();
+				if (lower.length >= 3) candidates.add(lower);
+				// Also add the last word if it's long enough (handles "all-purpose flour" → "flour")
+				const words = lower.split(/\s+/);
+				if (words.length > 1) {
+					const last = words[words.length - 1];
+					if (last.length >= 3) candidates.add(last);
+				}
+			}
 			let firstUsedInStep = -1;
-			if (searchName.length >= 3) {
+			if (candidates.size > 0) {
 				const instructions = JSON.parse(recipe.instructions) as string[];
 				for (let si = 0; si < instructions.length; si++) {
-					if (instructions[si].toLowerCase().includes(searchName)) {
-						firstUsedInStep = si;
-						break;
+					const stepLower = instructions[si].toLowerCase();
+					for (const term of candidates) {
+						if (stepLower.includes(term)) {
+							firstUsedInStep = si;
+							break;
+						}
 					}
+					if (firstUsedInStep >= 0) break;
 				}
 			}
 
