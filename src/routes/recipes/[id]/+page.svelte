@@ -1180,7 +1180,7 @@
 	}
 
 	.cat-badge {
-		display: inline-block;
+		display: inline;
 		font-size: 0.6rem;
 		color: #fff;
 		padding: 0.1rem 0.35rem;
@@ -1188,8 +1188,8 @@
 		font-weight: 600;
 		text-transform: uppercase;
 		letter-spacing: 0.03em;
-		white-space: normal;
-		word-break: break-word;
+		box-decoration-break: clone;
+		-webkit-box-decoration-break: clone;
 	}
 
 	/* Substitution styles */
