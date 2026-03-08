@@ -479,7 +479,7 @@
 		display: flex;
 		gap: 0;
 		min-height: calc(100vh - 73px);
-		margin: -2rem auto;
+		margin: 0 auto;
 		max-width: none;
 	}
 
