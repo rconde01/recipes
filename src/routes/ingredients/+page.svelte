@@ -50,6 +50,20 @@
 		<p class="subtitle">{data.ingredients.length} ingredients with density and calorie data</p>
 	</div>
 
+	<div class="weight-pref-bar">
+		<span class="weight-pref-label">Default weight unit:</span>
+		<form method="POST" action="?/setWeightPreference" use:enhance class="weight-pref-form">
+			<label class="weight-radio">
+				<input type="radio" name="weight_preference" value="g" checked={data.weightPreference === 'g'} onchange={(e) => e.currentTarget.form?.requestSubmit()} />
+				<span>Grams (g)</span>
+			</label>
+			<label class="weight-radio">
+				<input type="radio" name="weight_preference" value="oz" checked={data.weightPreference === 'oz'} onchange={(e) => e.currentTarget.form?.requestSubmit()} />
+				<span>Ounces (oz)</span>
+			</label>
+		</form>
+	</div>
+
 	<div class="toolbar">
 		<div class="filters">
 			<input
@@ -224,6 +238,42 @@
 		margin: 0.25rem 0 0 0;
 		color: #888;
 		font-size: 0.9rem;
+	}
+
+	.weight-pref-bar {
+		display: flex;
+		align-items: center;
+		gap: 1rem;
+		padding: 0.6rem 1rem;
+		background: #fff;
+		border: 1px solid #e0e0e0;
+		border-radius: 6px;
+		margin-bottom: 1rem;
+	}
+
+	.weight-pref-label {
+		font-weight: 600;
+		font-size: 0.85rem;
+		color: #555;
+	}
+
+	.weight-pref-form {
+		display: flex;
+		gap: 1rem;
+	}
+
+	.weight-radio {
+		display: flex;
+		align-items: center;
+		gap: 0.25rem;
+		cursor: pointer;
+		font-size: 0.85rem;
+		font-weight: 500;
+		color: #555;
+	}
+
+	.weight-radio input[type='radio'] {
+		accent-color: #e65100;
 	}
 
 	.toolbar {

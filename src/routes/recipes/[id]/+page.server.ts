@@ -2,7 +2,8 @@ import { redirect, fail, error } from '@sveltejs/kit';
 import {
 	getRecipesByUser, getRecipeById, updateRecipe, deleteRecipe,
 	getRecipeIngredients, setRecipeIngredients, getRecipeSteps, setRecipeSteps,
-	getAllKnownIngredients, getUserIngredientOverride, updateRecipeType
+	getAllKnownIngredients, getUserIngredientOverride, updateRecipeType,
+	getUserWeightPreference
 } from '$lib/server/db';
 import type { RecipeExtras } from '$lib/server/db';
 import { parseAndMatchIngredient } from '$lib/server/ingredient-parser';
@@ -25,11 +26,12 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		error(404, 'Recipe not found');
 	}
 
-	const [recipes, recipeIngredients, knownIngredients, recipeSteps] = await Promise.all([
+	const [recipes, recipeIngredients, knownIngredients, recipeSteps, weightPreference] = await Promise.all([
 		getRecipesByUser(locals.user.id),
 		getRecipeIngredients(params.id),
 		getAllKnownIngredients(),
-		getRecipeSteps(params.id)
+		getRecipeSteps(params.id),
+		getUserWeightPreference(locals.user.id)
 	]);
 
 	// Build a map of known ingredient id -> name + density
@@ -135,6 +137,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		recipes,
 		parsedIngredients: enrichedIngredients,
 		timelineSteps,
+		weightPreference,
 		recipeType: recipeType as RecipeType,
 		recipeTypeLabel: RECIPE_TYPE_LABELS[recipeType as RecipeType] ?? recipeType,
 		recipeTypeColor: RECIPE_TYPE_COLORS[recipeType as RecipeType] ?? '#757575',

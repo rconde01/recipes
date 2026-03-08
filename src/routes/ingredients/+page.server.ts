@@ -4,13 +4,18 @@ import {
 	getAllKnownIngredients,
 	createKnownIngredient,
 	updateKnownIngredient,
-	deleteKnownIngredient
+	deleteKnownIngredient,
+	getUserWeightPreference,
+	setUserWeightPreference
 } from '$lib/server/db';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	if (!locals.user) throw redirect(302, '/login');
-	const ingredients = await getAllKnownIngredients();
-	return { ingredients };
+	const [ingredients, weightPreference] = await Promise.all([
+		getAllKnownIngredients(),
+		getUserWeightPreference(locals.user.id)
+	]);
+	return { ingredients, weightPreference };
 };
 
 export const actions: Actions = {
@@ -65,6 +70,15 @@ export const actions: Actions = {
 		if (!id) return fail(400, { error: 'ID is required' });
 
 		await deleteKnownIngredient(id);
+		return { success: true };
+	},
+
+	setWeightPreference: async ({ request, locals }) => {
+		if (!locals.user) throw redirect(302, '/login');
+		const data = await request.formData();
+		const pref = (data.get('weight_preference') as string)?.trim();
+		if (pref !== 'g' && pref !== 'oz') return fail(400, { error: 'Invalid weight preference' });
+		await setUserWeightPreference(locals.user.id, pref);
 		return { success: true };
 	}
 };

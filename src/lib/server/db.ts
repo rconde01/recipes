@@ -116,6 +116,13 @@ export async function initDb() {
 		}
 	}
 
+	// Migrate: add weight_preference to users
+	try {
+		await db.execute(`ALTER TABLE users ADD COLUMN weight_preference TEXT NOT NULL DEFAULT 'g'`);
+	} catch {
+		// Column already exists, ignore
+	}
+
 	// Migrate: add calories_per_gram to known_ingredients and user_ingredient_overrides
 	for (const table of ['known_ingredients', 'user_ingredient_overrides']) {
 		try {
@@ -208,6 +215,15 @@ export async function getSession(sessionId: string): Promise<(Session & { email:
 
 export async function deleteSession(sessionId: string): Promise<void> {
 	await db.execute({ sql: 'DELETE FROM sessions WHERE id = ?', args: [sessionId] });
+}
+
+export async function getUserWeightPreference(userId: string): Promise<string> {
+	const result = await db.execute({ sql: 'SELECT weight_preference FROM users WHERE id = ?', args: [userId] });
+	return (result.rows[0]?.weight_preference as string) || 'g';
+}
+
+export async function setUserWeightPreference(userId: string, pref: string): Promise<void> {
+	await db.execute({ sql: 'UPDATE users SET weight_preference = ? WHERE id = ?', args: [pref, userId] });
 }
 
 // Recipes

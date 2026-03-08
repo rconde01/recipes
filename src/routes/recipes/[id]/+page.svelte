@@ -11,10 +11,6 @@
 	let ingredients = $state(['']);
 	let instructions = $state(['']);
 
-	// Unit display mode
-	let unitMode = $state<'default' | 'preference'>('default');
-	let weightUnit = $state<'g' | 'oz'>('g');
-
 	// Volume units in cups
 	const toCups: Record<string, number> = {
 		cup: 1, tbsp: 1/16, tsp: 1/48, ml: 1/236.588, l: 1000/236.588,
@@ -29,12 +25,11 @@
 	function isVolumeUnit(u: string) { return toCups[u] != null; }
 	function isWeightUnit(u: string) { return toGrams[u] != null; }
 
-	// Convert a quantity+unit to preferred mode (weight/volume) using density
+	// Auto-convert based on ingredient preference and user's weight unit setting
 	function convertToPreferred(qty: number | null, unit: string, densityGPerCup: number | null, preferredUnit: string): { qty: string; unit: string } | null {
 		if (qty == null || !preferredUnit || !unit) return null;
 		if (densityGPerCup == null) return null;
 
-		// Determine if we're converting to weight or volume
 		const wantWeight = preferredUnit === 'weight';
 		const wantVolume = preferredUnit === 'volume';
 		if (!wantWeight && !wantVolume) return null;
@@ -47,15 +42,13 @@
 		if (wantVolume && sourceIsVolume) return null;
 
 		if (wantWeight) {
-			// Convert volume -> weight (using global weightUnit)
 			if (!sourceIsVolume) return null;
 			const cups = qty * toCups[unit];
 			const grams = cups * densityGPerCup;
-			const targetUnit = weightUnit;
+			const targetUnit = data.weightPreference || 'g';
 			const val = grams / toGrams[targetUnit];
 			return { qty: formatConvertedQty(val, targetUnit), unit: targetUnit };
 		} else {
-			// Convert weight -> volume (keep original volume unit or default to cup)
 			if (!sourceIsWeight) return null;
 			const grams = qty * toGrams[unit];
 			const cups = grams / densityGPerCup;
@@ -530,31 +523,11 @@
 		{/if}
 
 		<div class="read-section">
-			<div class="section-header-row">
-				<h3>Ingredients{#if scaleFactor !== 1} <span class="scale-badge">{scaleFactor}x</span>{/if}</h3>
-				{#if data.parsedIngredients.length > 0}
-					<div class="unit-toggle">
-						<label class="radio-label">
-							<input type="radio" name="unitMode" value="default" bind:group={unitMode} />
-							<span>Default</span>
-						</label>
-						<label class="radio-label">
-							<input type="radio" name="unitMode" value="preference" bind:group={unitMode} />
-							<span>Preference</span>
-						</label>
-						{#if unitMode === 'preference'}
-							<select class="weight-unit-select" bind:value={weightUnit}>
-								<option value="g">g</option>
-								<option value="oz">oz</option>
-							</select>
-						{/if}
-					</div>
-				{/if}
-			</div>
+			<h3>Ingredients{#if scaleFactor !== 1} <span class="scale-badge">{scaleFactor}x</span>{/if}</h3>
 			<ul class="read-list">
 				{#each displayIngredients as ingredient, i}
 					{@const pi = data.parsedIngredients[i]}
-					{@const converted = unitMode === 'preference' && pi ? convertToPreferred(pi.quantity, pi.unit, pi.density_g_per_cup, pi.preferred_unit) : null}
+					{@const converted = pi ? convertToPreferred(pi.quantity, pi.unit, pi.density_g_per_cup, pi.preferred_unit) : null}
 					{#if converted}
 						<li><span class="converted-ingredient">{ingredient.replace(/^[\d\s\/½¼¾⅓⅔⅛⅜⅝⅞.]+\s*\S+/, `${converted.qty} ${converted.unit}`)}</span></li>
 					{:else}
@@ -607,7 +580,7 @@
 									</td>
 								</tr>
 								{#each items as { idx, pi }}
-								{@const conv = unitMode === 'preference' ? convertToPreferred(pi.quantity, pi.unit, pi.density_g_per_cup, pi.preferred_unit) : null}
+								{@const conv = convertToPreferred(pi.quantity, pi.unit, pi.density_g_per_cup, pi.preferred_unit)}
 									<tr
 										class:has-subs={pi.substitutions.length > 0}
 										class:expanded={expandedIngredient === idx}
@@ -896,44 +869,6 @@
 		margin: 0;
 		line-height: 1.5;
 		color: #444;
-	}
-
-	.section-header-row {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 1rem;
-		flex-wrap: wrap;
-	}
-
-	.unit-toggle {
-		display: flex;
-		align-items: center;
-		gap: 0.75rem;
-	}
-
-	.weight-unit-select {
-		padding: 0.15rem 0.3rem;
-		border: 1px solid #ccc;
-		border-radius: 3px;
-		font-size: 0.8rem;
-		background: #fff;
-	}
-
-	.radio-label {
-		display: flex;
-		align-items: center;
-		gap: 0.25rem;
-		cursor: pointer;
-		font-size: 0.85rem;
-		font-weight: 500;
-		color: #555;
-	}
-
-	.radio-label input[type='radio'] {
-		accent-color: #e65100;
-		width: 14px;
-		height: 14px;
 	}
 
 	.converted-ingredient {
