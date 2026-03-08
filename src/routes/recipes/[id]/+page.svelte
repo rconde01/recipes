@@ -501,10 +501,10 @@
 					<table class="ingredients-table">
 						<thead>
 							<tr>
-								<th style="width: 25%">Category</th>
+								<th style="width: 45%">Ingredient</th>
 								<th style="width: 15%">Qty</th>
 								<th style="width: 15%">Unit</th>
-								<th style="width: 45%">Ingredient</th>
+								<th style="width: 25%">Category</th>
 							</tr>
 						</thead>
 						<tbody>
@@ -527,11 +527,6 @@
 										onclick={() => { if (pi.substitutions.length > 0) toggleSubstitutions(idx); }}
 									>
 										<td>
-											<span class="cat-badge" style="background: {CATEGORY_COLORS[pi.foodCategory as IngredientCategory] ?? '#757575'}">{CATEGORY_LABELS[pi.foodCategory as IngredientCategory] ?? pi.foodCategory}</span>
-										</td>
-										<td>{pi.quantity != null ? pi.quantity : '—'}</td>
-										<td>{pi.unit || '—'}</td>
-										<td>
 											<span class="ingredient-name">
 												{pi.name || pi.raw_text}
 												{#if pi.substitutions.length > 0}
@@ -540,6 +535,11 @@
 													</span>
 												{/if}
 											</span>
+										</td>
+										<td>{pi.quantity != null ? pi.quantity : '—'}</td>
+										<td>{pi.unit || '—'}</td>
+										<td>
+											<span class="cat-badge" style="background: {CATEGORY_COLORS[pi.foodCategory as IngredientCategory] ?? '#757575'}">{CATEGORY_LABELS[pi.foodCategory as IngredientCategory] ?? pi.foodCategory}</span>
 										</td>
 									</tr>
 									{#if expandedIngredient === idx && pi.substitutions.length > 0}
