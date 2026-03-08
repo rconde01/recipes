@@ -1503,7 +1503,7 @@
 	@media (max-width: 768px) {
 		.recipes-layout {
 			position: relative;
-			overflow: hidden;
+			overflow-x: hidden;
 		}
 
 		aside.recipe-list {
