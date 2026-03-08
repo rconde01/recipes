@@ -40,18 +40,25 @@
 		const sourceIsVolume = isVolumeUnit(unit);
 		const sourceIsWeight = isWeightUnit(unit);
 
-		// Already in the right category? No conversion needed
-		if (wantWeight && sourceIsWeight) return null;
-		if (wantVolume && sourceIsVolume) return null;
-
 		if (wantWeight) {
+			const targetUnit = data.weightPreference || 'g';
+			// Already in the preferred weight unit — no conversion needed
+			if (sourceIsWeight && unit === targetUnit) return null;
+			// Convert between weight units (e.g. oz -> g)
+			if (sourceIsWeight) {
+				const grams = qty * toGrams[unit];
+				const val = grams / toGrams[targetUnit];
+				return { qty: formatConvertedQty(val, targetUnit), unit: targetUnit };
+			}
+			// Convert from volume to weight
 			if (!sourceIsVolume) return null;
 			const cups = qty * toCups[unit];
 			const grams = cups * densityGPerCup;
-			const targetUnit = data.weightPreference || 'g';
 			const val = grams / toGrams[targetUnit];
 			return { qty: formatConvertedQty(val, targetUnit), unit: targetUnit };
 		} else {
+			// Already in volume — no conversion needed
+			if (sourceIsVolume) return null;
 			if (!sourceIsWeight) return null;
 			const grams = qty * toGrams[unit];
 			const cups = grams / densityGPerCup;
