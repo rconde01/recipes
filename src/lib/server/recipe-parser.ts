@@ -81,6 +81,18 @@ function str(val: unknown): string {
 	return '';
 }
 
+function parseYield(val: unknown): string {
+	if (typeof val === 'string') return val;
+	if (Array.isArray(val)) {
+		// Prefer the most descriptive entry (e.g. "8 servings" over "8")
+		const strings = val.filter((v): v is string => typeof v === 'string');
+		const descriptive = strings.find((s) => /[a-zA-Z]/.test(s));
+		return descriptive || strings[0] || '';
+	}
+	if (typeof val === 'number') return `${val} servings`;
+	return '';
+}
+
 function parseImage(val: unknown): string {
 	if (typeof val === 'string') return val;
 	if (Array.isArray(val) && val.length > 0) return parseImage(val[0]);
@@ -123,7 +135,7 @@ export async function parseRecipeFromUrl(url: string): Promise<ParsedRecipe> {
 			prep_time: str(recipe.prepTime),
 			cook_time: str(recipe.cookTime),
 			total_time: str(recipe.totalTime),
-			yield: str(recipe.recipeYield),
+			yield: parseYield(recipe.recipeYield),
 			category: str(recipe.recipeCategory),
 			cuisine: str(recipe.recipeCuisine),
 			image_url: parseImage(recipe.image)
