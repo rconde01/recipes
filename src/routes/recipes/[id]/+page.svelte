@@ -12,7 +12,7 @@
 	let instructions = $state(['']);
 
 	// Unit display mode
-	let unitMode = $state<'default' | 'preference'>('default');
+	let unitMode = $state<'default' | 'preference'>('preference');
 
 	// Volume units in cups
 	const toCups: Record<string, number> = {
