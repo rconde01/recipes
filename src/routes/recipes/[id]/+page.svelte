@@ -971,12 +971,11 @@
 		font-size: 0.8rem;
 		color: #e65100;
 		font-weight: 600;
-		white-space: nowrap;
-		min-width: 120px;
 		padding: 0.3rem 0.5rem;
 		background: #fff3e0;
 		border-radius: 3px;
 		border: 1px solid #ffcc80;
+		word-break: break-word;
 	}
 
 	.instruction-wrapper {
@@ -1296,11 +1295,13 @@
 		display: flex;
 		align-items: start;
 		gap: 0.5rem;
+		flex-wrap: wrap;
 	}
 
 	.list-item input,
 	.list-item textarea {
-		flex: 1;
+		flex: 1 1 0;
+		min-width: 0;
 		padding: 0.5rem;
 		border: 1px solid #ccc;
 		border-radius: 4px;
