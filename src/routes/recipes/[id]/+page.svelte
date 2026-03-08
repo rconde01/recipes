@@ -609,16 +609,15 @@
 					<table class="ingredients-table">
 						<thead>
 							<tr>
-								<th style="width: 45%">Ingredient</th>
-								<th style="width: 15%">Qty</th>
-								<th style="width: 15%">Unit</th>
-								<th style="width: 25%">Category</th>
+								<th style="width: 40%">Ingredient</th>
+								<th style="width: 30%">Amount</th>
+								<th style="width: 30%">Category</th>
 							</tr>
 						</thead>
 						<tbody>
 							{#each groupedIngredients() as [category, items]}
 								<tr class="category-header-row">
-									<td colspan="4">
+									<td colspan="3">
 										{#if CATEGORY_COLORS[category as IngredientCategory]}
 											<span class="category-dot" style="background: {CATEGORY_COLORS[category as IngredientCategory]}"></span>
 											{CATEGORY_LABELS[category as IngredientCategory]}
@@ -645,15 +644,14 @@
 												{/if}
 											</span>
 										</td>
-									<td>{conv ? conv.qty : (pi.quantity != null ? pi.quantity : '—')}</td>
-									<td>{conv ? conv.unit : (pi.unit || '—')}</td>
+									<td>{conv ? (conv.qty + ' ' + conv.unit).trim() : (pi.quantity != null ? ((pi.unit ? pi.quantity + ' ' + pi.unit : String(pi.quantity)).trim()) : '—')}</td>
 										<td>
 											<span class="cat-badge" style="background: {CATEGORY_COLORS[pi.foodCategory as IngredientCategory] ?? '#757575'}">{CATEGORY_LABELS[pi.foodCategory as IngredientCategory] ?? pi.foodCategory}</span>
 										</td>
 									</tr>
 									{#if expandedIngredient === idx && pi.substitutions.length > 0}
 										<tr class="sub-row">
-											<td colspan="4">
+											<td colspan="3">
 												<div class="sub-panel">
 													<div class="sub-panel-header">Substitutions for <strong>{pi.known_name || pi.name}</strong></div>
 													<div class="sub-list">
