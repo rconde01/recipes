@@ -124,6 +124,23 @@
 		if (instructions.length === 0) instructions = [''];
 	}
 
+	function autoResize(el: HTMLTextAreaElement) {
+		el.style.height = 'auto';
+		el.style.height = el.scrollHeight + 'px';
+	}
+
+	function autoResizeAll() {
+		document.querySelectorAll<HTMLTextAreaElement>('textarea[name="ingredients"], textarea[name="instructions"], textarea[name="description"]').forEach(autoResize);
+	}
+
+	$effect(() => {
+		// Re-run when ingredients or instructions change
+		ingredients;
+		instructions;
+		// Tick to let DOM update
+		requestAnimationFrame(autoResizeAll);
+	});
+
 	let totalMinutes = $derived(data.timelineSteps.reduce((sum: number, s: { duration_minutes: number }) => sum + s.duration_minutes, 0));
 	let activeMinutes = $derived(data.timelineSteps.filter((s: { is_passive: boolean }) => !s.is_passive).reduce((sum: number, s: { duration_minutes: number }) => sum + s.duration_minutes, 0));
 	let passiveMinutes = $derived(totalMinutes - activeMinutes);
@@ -397,7 +414,7 @@
 
 			<label class="field">
 				Description
-				<textarea name="description" rows="4" placeholder="Brief description...">{data.recipe.description}</textarea>
+				<textarea name="description" rows="1" placeholder="Brief description..." oninput={(e) => autoResize(e.currentTarget)}>{data.recipe.description}</textarea>
 			</label>
 
 			<div class="field">
@@ -407,7 +424,7 @@
 				</div>
 				{#each ingredients as ingredient, i}
 					<div class="list-item">
-						<textarea name="ingredients" rows="2" placeholder="e.g. 2 cups flour">{ingredient}</textarea>
+						<textarea name="ingredients" rows="1" placeholder="e.g. 2 cups flour" oninput={(e) => autoResize(e.currentTarget)}>{ingredient}</textarea>
 						{#if scaleFactor !== 1 && displayIngredients[i] && displayIngredients[i] !== ingredient}
 							<span class="scaled-value" title="Scaled to {scaleFactor}x">{displayIngredients[i]}</span>
 						{/if}
@@ -514,7 +531,7 @@
 					<div class="list-item">
 						<span class="step-num">{i + 1}.</span>
 						<div class="instruction-wrapper">
-							<textarea name="instructions" rows="3" placeholder="Describe this step...">{instruction}</textarea>
+							<textarea name="instructions" rows="1" placeholder="Describe this step..." oninput={(e) => autoResize(e.currentTarget)}>{instruction}</textarea>
 							{#if scaleFactor !== 1 && displayInstructions[i] && displayInstructions[i] !== instruction}
 								<div class="scaled-instruction">{displayInstructions[i]}</div>
 							{/if}
@@ -1256,7 +1273,8 @@
 		border-radius: 4px;
 		font-size: 0.95rem;
 		font-family: inherit;
-		resize: vertical;
+		resize: none;
+		overflow: hidden;
 	}
 
 
