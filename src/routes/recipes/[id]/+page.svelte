@@ -177,6 +177,16 @@
 	let displayIngredients = $derived(activeScale()?.ingredients ?? data.recipe.ingredients);
 	let displayInstructions = $derived(activeScale()?.instructions ?? data.recipe.instructions);
 
+	// Scaled yield display
+	let displayYield = $derived(() => {
+		const raw = formatYield(data.recipe.yield ?? '');
+		if (!raw || scaleFactor === 1) return raw;
+		return raw.replace(/\d+(\.\d+)?/g, (m) => {
+			const v = parseFloat(m) * scaleFactor;
+			return v % 1 === 0 ? String(v) : v.toFixed(1);
+		});
+	});
+
 	$effect(() => {
 		const r = data.recipe;
 		ingredients = r.ingredients.length > 0 ? [...r.ingredients] : [''];
@@ -387,7 +397,7 @@
 					<tr><th>Total Time</th><td>{formatTime(data.recipe.total_time)}</td></tr>
 				{/if}
 				{#if data.recipe.yield}
-					<tr><th>Yield</th><td>{scaleFactor !== 1 ? formatYield(data.recipe.yield).replace(/\d+(\.\d+)?/g, (m) => { const v = parseFloat(m) * scaleFactor; return v % 1 === 0 ? String(v) : v.toFixed(1); }) : formatYield(data.recipe.yield)}{#if scaleFactor !== 1} <span class="scale-badge">{scaleFactor}x</span>{/if}</td></tr>
+					<tr><th>Yield</th><td>{displayYield()}{#if scaleFactor !== 1} <span class="scale-badge">{scaleFactor}x</span>{/if}</td></tr>
 				{/if}
 				{#if data.recipe.category}
 					<tr><th>Category</th><td>{data.recipe.category}</td></tr>
