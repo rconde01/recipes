@@ -816,6 +816,11 @@
 		padding-left: 1.25rem;
 		line-height: 1.6;
 		color: #444;
+		list-style: disc;
+	}
+
+	ol.read-list {
+		list-style: decimal;
 	}
 
 	.read-list li {
