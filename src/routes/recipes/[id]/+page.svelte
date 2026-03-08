@@ -378,7 +378,7 @@
 
 			<label class="field">
 				Description
-				<textarea name="description" rows="2" placeholder="Brief description...">{data.recipe.description}</textarea>
+				<textarea name="description" rows="4" placeholder="Brief description...">{data.recipe.description}</textarea>
 			</label>
 
 			<div class="field">
@@ -511,7 +511,7 @@
 					<div class="list-item">
 						<span class="step-num">{i + 1}.</span>
 						<div class="instruction-wrapper">
-							<textarea name="instructions" rows="2" placeholder="Describe this step...">{instruction}</textarea>
+							<textarea name="instructions" rows="3" placeholder="Describe this step...">{instruction}</textarea>
 							{#if scaleFactor !== 1 && displayInstructions[i] && displayInstructions[i] !== instruction}
 								<div class="scaled-instruction">{displayInstructions[i]}</div>
 							{/if}
@@ -1254,6 +1254,10 @@
 		font-size: 0.95rem;
 		font-family: inherit;
 		resize: vertical;
+	}
+
+	.field textarea {
+		field-sizing: content;
 	}
 
 	.field-header {
