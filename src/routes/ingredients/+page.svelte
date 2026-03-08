@@ -9,7 +9,7 @@
 	let filterText = $state('');
 	let filterCategory = $state('');
 
-	const UNIT_OPTIONS = ['', 'g', 'kg', 'oz', 'lb', 'cup', 'tbsp', 'tsp', 'ml', 'l'];
+	const UNIT_OPTIONS = ['', 'weight', 'volume'];
 
 	let categories = $derived(() => {
 		const cats = new Set<string>();

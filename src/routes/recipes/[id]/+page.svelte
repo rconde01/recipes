@@ -13,47 +13,59 @@
 
 	// Unit display mode
 	let unitMode = $state<'default' | 'preference'>('default');
+	let weightUnit = $state<'g' | 'oz'>('g');
 
-	// Convert a quantity+unit to preferred unit using density
+	// Volume units in cups
+	const toCups: Record<string, number> = {
+		cup: 1, tbsp: 1/16, tsp: 1/48, ml: 1/236.588, l: 1000/236.588,
+		'fl oz': 1/8, pint: 2, quart: 4, gallon: 16
+	};
+
+	// Weight units in grams
+	const toGrams: Record<string, number> = {
+		g: 1, kg: 1000, oz: 28.3495, lb: 453.592
+	};
+
+	function isVolumeUnit(u: string) { return toCups[u] != null; }
+	function isWeightUnit(u: string) { return toGrams[u] != null; }
+
+	// Convert a quantity+unit to preferred mode (weight/volume) using density
 	function convertToPreferred(qty: number | null, unit: string, densityGPerCup: number | null, preferredUnit: string): { qty: string; unit: string } | null {
-		if (qty == null || !preferredUnit || !unit || unit === preferredUnit) return null;
+		if (qty == null || !preferredUnit || !unit) return null;
 		if (densityGPerCup == null) return null;
 
-		// Volume units in cups
-		const toCups: Record<string, number> = {
-			cup: 1, tbsp: 1/16, tsp: 1/48, ml: 1/236.588, l: 1000/236.588,
-			'fl oz': 1/8, pint: 2, quart: 4, gallon: 16
-		};
+		// Determine if we're converting to weight or volume
+		const wantWeight = preferredUnit === 'weight';
+		const wantVolume = preferredUnit === 'volume';
+		if (!wantWeight && !wantVolume) return null;
 
-		// Weight units in grams
-		const toGrams: Record<string, number> = {
-			g: 1, kg: 1000, oz: 28.3495, lb: 453.592
-		};
+		const sourceIsVolume = isVolumeUnit(unit);
+		const sourceIsWeight = isWeightUnit(unit);
 
-		// Convert source to grams first
-		let grams: number | null = null;
-		if (toGrams[unit] != null) {
-			grams = qty * toGrams[unit];
-		} else if (toCups[unit] != null) {
+		// Already in the right category? No conversion needed
+		if (wantWeight && sourceIsWeight) return null;
+		if (wantVolume && sourceIsVolume) return null;
+
+		if (wantWeight) {
+			// Convert volume -> weight (using global weightUnit)
+			if (!sourceIsVolume) return null;
 			const cups = qty * toCups[unit];
-			grams = cups * densityGPerCup;
-		}
-		if (grams == null) return null;
-
-		// Convert grams to target unit
-		if (toGrams[preferredUnit] != null) {
-			const val = grams / toGrams[preferredUnit];
-			return { qty: formatConvertedQty(val, preferredUnit), unit: preferredUnit };
-		} else if (toCups[preferredUnit] != null) {
+			const grams = cups * densityGPerCup;
+			const targetUnit = weightUnit;
+			const val = grams / toGrams[targetUnit];
+			return { qty: formatConvertedQty(val, targetUnit), unit: targetUnit };
+		} else {
+			// Convert weight -> volume (keep original volume unit or default to cup)
+			if (!sourceIsWeight) return null;
+			const grams = qty * toGrams[unit];
 			const cups = grams / densityGPerCup;
-			const val = cups / toCups[preferredUnit];
-			return { qty: formatConvertedQty(val, preferredUnit), unit: preferredUnit };
+			return { qty: formatConvertedQty(cups, 'cup'), unit: 'cup' };
 		}
-		return null;
 	}
 
 	function formatConvertedQty(val: number, unit: string): string {
 		if (unit === 'g') return Math.round(val).toString();
+		if (unit === 'oz') return val >= 10 ? Math.round(val).toString() : val.toFixed(1).replace(/\.0$/, '');
 		if (val >= 100) return Math.round(val).toString();
 		if (val >= 10) return val.toFixed(1).replace(/\.0$/, '');
 		return val.toFixed(2).replace(/\.?0+$/, '');
@@ -530,6 +542,12 @@
 							<input type="radio" name="unitMode" value="preference" bind:group={unitMode} />
 							<span>Preference</span>
 						</label>
+						{#if unitMode === 'preference'}
+							<select class="weight-unit-select" bind:value={weightUnit}>
+								<option value="g">g</option>
+								<option value="oz">oz</option>
+							</select>
+						{/if}
 					</div>
 				{/if}
 			</div>
@@ -890,7 +908,16 @@
 
 	.unit-toggle {
 		display: flex;
+		align-items: center;
 		gap: 0.75rem;
+	}
+
+	.weight-unit-select {
+		padding: 0.15rem 0.3rem;
+		border: 1px solid #ccc;
+		border-radius: 3px;
+		font-size: 0.8rem;
+		background: #fff;
 	}
 
 	.radio-label {
