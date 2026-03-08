@@ -190,6 +190,18 @@
 		expandedIngredient = expandedIngredient === index ? null : index;
 	}
 
+	function formatTime(value: string): string {
+		const match = value.match(/^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/i);
+		if (!match) return value;
+		const h = parseInt(match[1] || '0');
+		const m = parseInt(match[2] || '0');
+		const parts: string[] = [];
+		if (h > 0) parts.push(`${h} hr${h > 1 ? 's' : ''}`);
+		if (m > 0) parts.push(`${m} min`);
+		if (parts.length === 0) return value;
+		return parts.join(' ');
+	}
+
 	function formatDuration(minutes: number): string {
 		if (minutes === 0) return '0 min';
 		if (minutes < 1) return `${Math.round(minutes * 60)} sec`;
@@ -270,13 +282,13 @@
 						</tr>
 					{/if}
 					{#if data.recipe.prep_time}
-						<tr><th>Prep Time</th><td>{data.recipe.prep_time}</td></tr>
+						<tr><th>Prep Time</th><td>{formatTime(data.recipe.prep_time)}</td></tr>
 					{/if}
 					{#if data.recipe.cook_time}
-						<tr><th>Cook Time</th><td>{data.recipe.cook_time}</td></tr>
+						<tr><th>Cook Time</th><td>{formatTime(data.recipe.cook_time)}</td></tr>
 					{/if}
 					{#if data.recipe.total_time}
-						<tr><th>Total Time</th><td>{data.recipe.total_time}</td></tr>
+						<tr><th>Total Time</th><td>{formatTime(data.recipe.total_time)}</td></tr>
 					{/if}
 					{#if data.recipe.yield}
 						<tr><th>Yield</th><td>{data.recipe.yield}</td></tr>
