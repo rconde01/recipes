@@ -1184,6 +1184,8 @@
 		font-size: 0.6rem;
 		color: #fff;
 		padding: 0.1rem 0.35rem;
+		word-break: break-word;
+		white-space: normal;
 		border-radius: 3px;
 		font-weight: 600;
 		text-transform: uppercase;
