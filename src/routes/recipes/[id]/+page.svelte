@@ -11,6 +11,9 @@
 	let ingredients = $state(['']);
 	let instructions = $state(['']);
 
+	// Unit display mode
+	let unitMode = $state<'default' | 'preference'>('default');
+
 	// Volume units in cups
 	const toCups: Record<string, number> = {
 		cup: 1, tbsp: 1/16, tsp: 1/48, ml: 1/236.588, l: 1000/236.588,
@@ -523,11 +526,25 @@
 		{/if}
 
 		<div class="read-section">
-			<h3>Ingredients{#if scaleFactor !== 1} <span class="scale-badge">{scaleFactor}x</span>{/if}</h3>
+			<div class="section-header-row">
+				<h3>Ingredients{#if scaleFactor !== 1} <span class="scale-badge">{scaleFactor}x</span>{/if}</h3>
+				{#if data.parsedIngredients.length > 0}
+					<div class="unit-toggle">
+						<label class="radio-label">
+							<input type="radio" name="unitMode" value="default" bind:group={unitMode} />
+							<span>Default</span>
+						</label>
+						<label class="radio-label">
+							<input type="radio" name="unitMode" value="preference" bind:group={unitMode} />
+							<span>Preference</span>
+						</label>
+					</div>
+				{/if}
+			</div>
 			<ul class="read-list">
 				{#each displayIngredients as ingredient, i}
 					{@const pi = data.parsedIngredients[i]}
-					{@const converted = pi ? convertToPreferred(pi.quantity, pi.unit, pi.density_g_per_cup, pi.preferred_unit) : null}
+					{@const converted = unitMode === 'preference' && pi ? convertToPreferred(pi.quantity, pi.unit, pi.density_g_per_cup, pi.preferred_unit) : null}
 					{#if converted}
 						<li><span class="converted-ingredient">{ingredient.replace(/^[\d\s\/½¼¾⅓⅔⅛⅜⅝⅞.]+\s*\S+/, `${converted.qty} ${converted.unit}`)}</span></li>
 					{:else}
@@ -580,7 +597,7 @@
 									</td>
 								</tr>
 								{#each items as { idx, pi }}
-								{@const conv = convertToPreferred(pi.quantity, pi.unit, pi.density_g_per_cup, pi.preferred_unit)}
+								{@const conv = unitMode === 'preference' ? convertToPreferred(pi.quantity, pi.unit, pi.density_g_per_cup, pi.preferred_unit) : null}
 									<tr
 										class:has-subs={pi.substitutions.length > 0}
 										class:expanded={expandedIngredient === idx}
@@ -869,6 +886,36 @@
 		margin: 0;
 		line-height: 1.5;
 		color: #444;
+	}
+
+	.section-header-row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 1rem;
+		flex-wrap: wrap;
+	}
+
+	.unit-toggle {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+	}
+
+	.radio-label {
+		display: flex;
+		align-items: center;
+		gap: 0.25rem;
+		cursor: pointer;
+		font-size: 0.85rem;
+		font-weight: 500;
+		color: #555;
+	}
+
+	.radio-label input[type='radio'] {
+		accent-color: #e65100;
+		width: 14px;
+		height: 14px;
 	}
 
 	.converted-ingredient {
