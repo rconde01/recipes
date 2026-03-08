@@ -434,14 +434,12 @@
 								<th>Qty</th>
 								<th>Unit</th>
 								<th>Ingredient</th>
-								<th>Matched To</th>
-								<th>g/cup</th>
 							</tr>
 						</thead>
 						<tbody>
 							{#each groupedIngredients() as [category, items]}
 								<tr class="category-header-row">
-									<td colspan="6">
+									<td colspan="4">
 										{#if CATEGORY_COLORS[category as IngredientCategory]}
 											<span class="category-dot" style="background: {CATEGORY_COLORS[category as IngredientCategory]}"></span>
 											{CATEGORY_LABELS[category as IngredientCategory]}
@@ -472,24 +470,10 @@
 												{/if}
 											</span>
 										</td>
-										<td>
-											{#if pi.known_name}
-												<span class="matched">{pi.known_name}</span>
-											{:else}
-												<span class="unmatched">unmatched</span>
-											{/if}
-										</td>
-										<td>
-											{#if pi.density_g_per_cup != null}
-												{pi.density_g_per_cup}{#if pi.user_override} <span class="override-badge">custom</span>{/if}
-											{:else}
-												—
-											{/if}
-										</td>
 									</tr>
 									{#if expandedIngredient === idx && pi.substitutions.length > 0}
 										<tr class="sub-row">
-											<td colspan="6">
+											<td colspan="4">
 												<div class="sub-panel">
 													<div class="sub-panel-header">Substitutions for <strong>{pi.known_name || pi.name}</strong></div>
 													<div class="sub-list">
