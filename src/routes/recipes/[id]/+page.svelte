@@ -43,16 +43,17 @@
 		// Convert grams to target unit
 		if (toGrams[preferredUnit] != null) {
 			const val = grams / toGrams[preferredUnit];
-			return { qty: formatConvertedQty(val), unit: preferredUnit };
+			return { qty: formatConvertedQty(val, preferredUnit), unit: preferredUnit };
 		} else if (toCups[preferredUnit] != null) {
 			const cups = grams / densityGPerCup;
 			const val = cups / toCups[preferredUnit];
-			return { qty: formatConvertedQty(val), unit: preferredUnit };
+			return { qty: formatConvertedQty(val, preferredUnit), unit: preferredUnit };
 		}
 		return null;
 	}
 
-	function formatConvertedQty(val: number): string {
+	function formatConvertedQty(val: number, unit: string): string {
+		if (unit === 'g') return Math.round(val).toString();
 		if (val >= 100) return Math.round(val).toString();
 		if (val >= 10) return val.toFixed(1).replace(/\.0$/, '');
 		return val.toFixed(2).replace(/\.?0+$/, '');
