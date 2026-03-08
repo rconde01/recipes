@@ -190,6 +190,13 @@
 		expandedIngredient = expandedIngredient === index ? null : index;
 	}
 
+	function formatYield(value: string): string {
+		// Fix stored duplicates like "8, 8 servings" → "8 servings"
+		const parts = value.split(',').map((s) => s.trim()).filter(Boolean);
+		if (parts.length <= 1) return value;
+		return parts.find((s) => /[a-zA-Z]/.test(s)) || parts[0];
+	}
+
 	function formatTime(value: string): string {
 		const match = value.match(/^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/i);
 		if (!match) return value;
@@ -291,7 +298,7 @@
 						<tr><th>Total Time</th><td>{formatTime(data.recipe.total_time)}</td></tr>
 					{/if}
 					{#if data.recipe.yield}
-						<tr><th>Yield</th><td>{data.recipe.yield}</td></tr>
+						<tr><th>Yield</th><td>{formatYield(data.recipe.yield)}</td></tr>
 					{/if}
 					{#if data.recipe.category}
 						<tr><th>Category</th><td>{data.recipe.category}</td></tr>
@@ -1300,13 +1307,14 @@
 
 	.list-item input,
 	.list-item textarea {
-		flex: 1 1 0;
+		flex: 1 1 100%;
 		min-width: 0;
 		padding: 0.5rem;
 		border: 1px solid #ccc;
 		border-radius: 4px;
 		font-size: 0.95rem;
 		font-family: inherit;
+		word-break: break-word;
 	}
 
 	.step-num {
