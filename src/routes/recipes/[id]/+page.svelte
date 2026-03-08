@@ -407,7 +407,7 @@
 				</div>
 				{#each ingredients as ingredient, i}
 					<div class="list-item">
-						<textarea name="ingredients" rows="1" placeholder="e.g. 2 cups flour">{ingredient}</textarea>
+						<textarea name="ingredients" rows="2" placeholder="e.g. 2 cups flour">{ingredient}</textarea>
 						{#if scaleFactor !== 1 && displayIngredients[i] && displayIngredients[i] !== ingredient}
 							<span class="scaled-value" title="Scaled to {scaleFactor}x">{displayIngredients[i]}</span>
 						{/if}
@@ -1259,9 +1259,6 @@
 		resize: vertical;
 	}
 
-	.field textarea {
-		field-sizing: content;
-	}
 
 	.field-header {
 		display: flex;
