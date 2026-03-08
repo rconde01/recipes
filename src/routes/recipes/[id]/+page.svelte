@@ -238,20 +238,21 @@
 
 		<form method="POST" action="?/save">
 			<div class="detail-header">
-				<input type="text" name="title" value={data.recipe.title} placeholder="Recipe title" class="title-input" required />
-				<div class="header-actions">
-					<button type="submit" class="btn-save">Save</button>
-					<button type="submit" formaction="?/delete" class="btn-delete" onclick={(e) => { if (!confirm('Delete this recipe?')) e.preventDefault(); }}>Delete</button>
+				<div class="header-top">
+					<input type="text" name="title" value={data.recipe.title} placeholder="Recipe title" class="title-input" required />
+					<div class="header-actions">
+						<button type="submit" class="btn-save">Save</button>
+						<button type="submit" formaction="?/delete" class="btn-delete" onclick={(e) => { if (!confirm('Delete this recipe?')) e.preventDefault(); }}>Delete</button>
+					</div>
 				</div>
-			</div>
-
-			<div class="recipe-type-bar">
-				<span class="recipe-type-badge" style="background: {data.recipeTypeColor}">{data.recipeTypeLabel}</span>
-				<select name="recipe_type" class="recipe-type-select" value={data.recipeType}>
-					{#each data.allRecipeTypes as rt}
-						<option value={rt.value} selected={rt.value === data.recipeType}>{rt.label}</option>
-					{/each}
-				</select>
+				<div class="header-meta">
+					<span class="recipe-type-badge" style="background: {data.recipeTypeColor}">{data.recipeTypeLabel}</span>
+					<select name="recipe_type" class="recipe-type-select" value={data.recipeType}>
+						{#each data.allRecipeTypes as rt}
+							<option value={rt.value} selected={rt.value === data.recipeType}>{rt.label}</option>
+						{/each}
+					</select>
+				</div>
 			</div>
 
 			{#if data.recipe.image_url}
@@ -682,9 +683,21 @@
 
 	.detail-header {
 		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+		margin-bottom: 1.5rem;
+	}
+
+	.header-top {
+		display: flex;
 		align-items: center;
 		gap: 1rem;
-		margin-bottom: 1.5rem;
+	}
+
+	.header-meta {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
 	}
 
 	.title-input {
@@ -696,17 +709,11 @@
 		padding: 0.3rem 0;
 		background: transparent;
 		outline: none;
+		min-width: 0;
 	}
 
 	.title-input:focus {
 		border-color: #e65100;
-	}
-
-	.recipe-type-bar {
-		display: flex;
-		align-items: center;
-		gap: 0.75rem;
-		margin-bottom: 1rem;
 	}
 
 	.recipe-type-badge {
@@ -718,6 +725,7 @@
 		font-weight: 600;
 		text-transform: uppercase;
 		letter-spacing: 0.04em;
+		white-space: nowrap;
 	}
 
 	.recipe-type-select {
@@ -1542,12 +1550,22 @@
 			color: #bf360c;
 		}
 
-		.detail-header {
+		.header-top {
 			flex-wrap: wrap;
 		}
 
 		.title-input {
+			flex-basis: 100%;
 			font-size: 1.2rem;
+		}
+
+		.header-actions {
+			width: 100%;
+			justify-content: flex-start;
+		}
+
+		.header-meta {
+			flex-wrap: wrap;
 		}
 
 		.scaler-bar {
