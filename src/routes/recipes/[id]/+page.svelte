@@ -696,7 +696,9 @@
 
 	section.recipe-detail {
 		flex: 1;
+		min-width: 0;
 		padding: 2rem;
+		box-sizing: border-box;
 	}
 
 	.detail-header {
@@ -1563,8 +1565,9 @@
 
 		section.recipe-detail {
 			width: 100%;
-			min-width: 100%;
+			min-width: 0;
 			padding: 1rem;
+			box-sizing: border-box;
 		}
 
 		.mobile-back-btn {
