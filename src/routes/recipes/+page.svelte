@@ -189,4 +189,23 @@
 	.btn-save:hover {
 		background: #bf360c;
 	}
+
+	/* Mobile layout */
+	@media (max-width: 768px) {
+		.recipes-layout {
+			flex-direction: column;
+		}
+
+		aside.recipe-list {
+			width: 100%;
+			min-width: 100%;
+			border-right: none;
+			border-bottom: 1px solid #e0e0e0;
+			max-height: none;
+		}
+
+		section.recipe-detail {
+			padding: 1rem;
+		}
+	}
 </style>

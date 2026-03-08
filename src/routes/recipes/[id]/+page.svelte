@@ -180,6 +180,9 @@
 		return sorted;
 	});
 
+	// Mobile navigation state
+	let mobileShowDetail = $state(true);
+
 	// Substitution panel state
 	let expandedIngredient = $state<number | null>(null);
 
@@ -202,7 +205,7 @@
 	<title>{data.recipe.title} - Recipes</title>
 </svelte:head>
 
-<div class="recipes-layout">
+<div class="recipes-layout" class:mobile-show-detail={mobileShowDetail}>
 	<aside class="recipe-list">
 		<div class="list-header">
 			<h2>My Recipes</h2>
@@ -214,7 +217,7 @@
 		<ul>
 			{#each data.recipes as recipe}
 				<li>
-					<a href="/recipes/{recipe.id}" class:active={recipe.id === data.recipe.id}>
+					<a href="/recipes/{recipe.id}" class:active={recipe.id === data.recipe.id} onclick={() => mobileShowDetail = true}>
 						{recipe.title}
 					</a>
 				</li>
@@ -223,6 +226,9 @@
 	</aside>
 
 	<section class="recipe-detail">
+		<button class="mobile-back-btn" onclick={() => mobileShowDetail = false}>
+			&#8592; All Recipes
+		</button>
 		{#if form?.error}
 			<p class="error">{form.error}</p>
 		{/if}
@@ -1481,4 +1487,88 @@
 
 	.active-swatch { background: #e65100; }
 	.passive-swatch { background: #90caf9; }
+
+	/* Mobile back button — hidden on desktop */
+	.mobile-back-btn {
+		display: none;
+	}
+
+	/* Mobile layout */
+	@media (max-width: 768px) {
+		.recipes-layout {
+			position: relative;
+			overflow: hidden;
+		}
+
+		aside.recipe-list {
+			position: absolute;
+			top: 0;
+			left: 0;
+			width: 100%;
+			min-width: 100%;
+			height: 100%;
+			z-index: 2;
+			transform: translateX(0);
+			transition: transform 0.3s ease;
+			overflow-y: auto;
+		}
+
+		/* When detail is shown, slide the list off-screen to the left */
+		.recipes-layout.mobile-show-detail aside.recipe-list {
+			transform: translateX(-100%);
+		}
+
+		section.recipe-detail {
+			width: 100%;
+			min-width: 100%;
+			padding: 1rem;
+		}
+
+		.mobile-back-btn {
+			display: inline-flex;
+			align-items: center;
+			gap: 0.3rem;
+			background: none;
+			border: none;
+			color: #e65100;
+			font-size: 0.9rem;
+			font-weight: 600;
+			cursor: pointer;
+			padding: 0.4rem 0;
+			margin-bottom: 0.5rem;
+		}
+
+		.mobile-back-btn:hover {
+			color: #bf360c;
+		}
+
+		.detail-header {
+			flex-wrap: wrap;
+		}
+
+		.title-input {
+			font-size: 1.2rem;
+		}
+
+		.scaler-bar {
+			flex-wrap: wrap;
+		}
+
+		.recipe-meta th {
+			width: auto;
+		}
+
+		.ingredients-table {
+			font-size: 0.8rem;
+		}
+
+		.sub-list {
+			grid-template-columns: 1fr;
+		}
+
+		.timeline-summary {
+			flex-direction: column;
+			gap: 0.5rem;
+		}
+	}
 </style>
