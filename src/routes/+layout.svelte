@@ -16,6 +16,7 @@
 		{#if data.user}
 			<a href="/meal-plan" onclick={() => (menuOpen = false)}>Meal Plan</a>
 			<a href="/cook" onclick={() => (menuOpen = false)}>Cook</a>
+			<a href="/ingredients" onclick={() => (menuOpen = false)}>Ingredients</a>
 			<span class="user-greeting">Hi, {data.user.username}</span>
 			<form method="POST" action="/logout">
 				<button type="submit" class="logout-btn">Logout</button>
