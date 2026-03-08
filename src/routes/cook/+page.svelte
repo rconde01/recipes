@@ -13,6 +13,7 @@
 	]);
 	let multipliers = $state<Map<string, number>>(new Map());
 	let dragOffsets = $state<Map<string, number>>(new Map());
+	let finishTime = $state('');
 
 	// Drag state
 	let dragStepId = $state<string | null>(null);
@@ -237,6 +238,21 @@
 	function hideTooltip() {
 		tooltipStep = null;
 	}
+
+	// Finish time: convert a relative minute offset to a clock time string
+	function minuteToClock(minute: number): string {
+		if (!finishTime) return '';
+		const [h, m] = finishTime.split(':').map(Number);
+		if (isNaN(h) || isNaN(m)) return '';
+		const finishTotalMin = h * 60 + m;
+		const startTotalMin = finishTotalMin - totalTime;
+		const clockMin = startTotalMin + minute;
+		const clockH = Math.floor(((clockMin % 1440) + 1440) % 1440 / 60);
+		const clockM = Math.round(((clockMin % 60) + 60) % 60);
+		const period = clockH >= 12 ? 'PM' : 'AM';
+		const displayH = clockH === 0 ? 12 : clockH > 12 ? clockH - 12 : clockH;
+		return `${displayH}:${clockM.toString().padStart(2, '0')} ${period}`;
+	}
 </script>
 
 <svelte:head>
@@ -299,6 +315,20 @@
 			{/each}
 			<button class="btn-add-eq" onclick={addEquipment}>+ Add Equipment</button>
 		</div>
+
+		<div class="sidebar-section">
+			<h3>Finish Time</h3>
+			<p class="finish-time-hint">Set when you want to be done eating. Steps will show clock times.</p>
+			<div class="finish-time-control">
+				<input type="time" bind:value={finishTime} class="finish-time-input" />
+				{#if finishTime}
+					<button class="btn-clear-time" onclick={() => finishTime = ''}>Clear</button>
+				{/if}
+			</div>
+			{#if finishTime && totalTime > 0}
+				<p class="finish-time-summary">Start cooking at <strong>{minuteToClock(0)}</strong></p>
+			{/if}
+		</div>
 	</aside>
 
 	<section class="gantt-area">
@@ -326,9 +356,12 @@
 
 			<div class="gantt-container" bind:this={chartContainerEl}>
 				<!-- Time axis -->
-				<div class="time-axis" style="width: {chartWidth}px">
+				<div class="time-axis" class:has-clock={!!finishTime} style="width: {chartWidth}px">
 					{#each timeMarkers() as t}
 						<div class="time-marker" style="left: {minuteToX(t)}px">
+							{#if finishTime}
+								<span class="time-label clock-label">{minuteToClock(t)}</span>
+							{/if}
 							<span class="time-label">{formatMinutes(t)}</span>
 						</div>
 					{/each}
@@ -378,10 +411,13 @@
 				{/each}
 
 				<!-- End time marker -->
-				<div class="time-axis-bottom" style="width: {chartWidth}px">
+				<div class="time-axis-bottom" class:has-clock={!!finishTime} style="width: {chartWidth}px">
 					{#each timeMarkers() as t}
 						<div class="time-marker" style="left: {minuteToX(t)}px">
 							<span class="time-label">{formatMinutes(t)}</span>
+							{#if finishTime}
+								<span class="time-label clock-label">{minuteToClock(t)}</span>
+							{/if}
 						</div>
 					{/each}
 				</div>
@@ -430,7 +466,12 @@
 												<span class="type-badge active">active</span>
 											{/if}
 										</td>
-										<td class="col-start">{formatMinutes(step.startMinute)}</td>
+										<td class="col-start">
+										{formatMinutes(step.startMinute)}
+										{#if finishTime}
+											<span class="clock-time">{minuteToClock(step.startMinute)}</span>
+										{/if}
+									</td>
 										<td class="col-desc">
 											{step.label.length > 80 ? step.label.slice(0, 80) + '...' : step.label}
 											{#if step.equipment.length > 0}
@@ -462,7 +503,7 @@
 		<p>{tooltipStep.label.length > 120 ? tooltipStep.label.slice(0, 120) + '...' : tooltipStep.label}</p>
 		<div class="tooltip-meta">
 			<span>Duration: {formatMinutes(tooltipStep.durationMinutes)}</span>
-			<span>Starts: {formatMinutes(tooltipStep.startMinute)}</span>
+			<span>Starts: {formatMinutes(tooltipStep.startMinute)}{finishTime ? ` (${minuteToClock(tooltipStep.startMinute)})` : ''}</span>
 			<span>Type: {tooltipStep.isPassive ? 'Passive' : 'Active'}</span>
 		</div>
 		{#if tooltipStep.equipment.length > 0}
@@ -988,5 +1029,66 @@
 	.tooltip-meta span {
 		display: inline-block;
 		margin-right: 0.8rem;
+	}
+
+	/* Finish time */
+	.finish-time-hint {
+		font-size: 0.8rem;
+		color: #999;
+		margin: 0 0 0.5rem 0;
+	}
+
+	.finish-time-control {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+	}
+
+	.finish-time-input {
+		padding: 0.35rem 0.5rem;
+		border: 1px solid #ccc;
+		border-radius: 4px;
+		font-size: 0.9rem;
+		flex: 1;
+	}
+
+	.btn-clear-time {
+		background: none;
+		border: 1px solid #ccc;
+		padding: 0.3rem 0.5rem;
+		border-radius: 4px;
+		cursor: pointer;
+		font-size: 0.75rem;
+		color: #888;
+	}
+
+	.btn-clear-time:hover { background: #f5f5f5; color: #333; }
+
+	.finish-time-summary {
+		font-size: 0.85rem;
+		margin: 0.5rem 0 0 0;
+		color: #555;
+	}
+
+	.clock-label {
+		color: #e65100 !important;
+		font-weight: 600;
+	}
+
+	.time-axis.has-clock, .time-axis-bottom.has-clock {
+		height: 38px;
+	}
+
+	.has-clock .time-marker {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+	}
+
+	.clock-time {
+		display: block;
+		font-size: 0.7rem;
+		color: #e65100;
+		font-weight: 500;
 	}
 </style>
