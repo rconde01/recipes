@@ -519,7 +519,7 @@
 		<div class="read-section">
 			<div class="section-header-row">
 				<h3>Ingredients{#if scaleFactor !== 1} <span class="scale-badge">{scaleFactor}x</span>{/if}</h3>
-				{#if data.parsedIngredients.some((pi: ParsedIngredient) => pi.preferred_unit)}
+				{#if data.parsedIngredients.length > 0}
 					<div class="unit-toggle">
 						<label class="radio-label">
 							<input type="radio" name="unitMode" value="default" bind:group={unitMode} />

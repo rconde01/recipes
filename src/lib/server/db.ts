@@ -531,6 +531,11 @@ export async function seedKnownIngredients(): Promise<void> {
 			sql: 'INSERT OR IGNORE INTO known_ingredients (id, canonical_name, category, density_g_per_cup, calories_per_gram, preferred_unit) VALUES (?, ?, ?, ?, ?, ?)',
 			args: [crypto.randomUUID(), d.name, d.category, d.density, d.cal, d.pref]
 		});
+		// Backfill preferred_unit and calories on existing rows
+		await db.execute({
+			sql: `UPDATE known_ingredients SET preferred_unit = ?, calories_per_gram = ? WHERE canonical_name = ? AND preferred_unit = '' AND calories_per_gram IS NULL`,
+			args: [d.pref, d.cal, d.name]
+		});
 	}
 }
 
