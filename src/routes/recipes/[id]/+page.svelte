@@ -3,7 +3,7 @@
 	import { formatSubAmount } from '$lib/substitutions';
 	import { CATEGORY_LABELS, CATEGORY_COLORS, CATEGORY_ORDER } from '$lib/ingredient-categories';
 	import type { IngredientCategory } from '$lib/ingredient-categories';
-	import { scaleRecipeLocal } from '$lib/recipe-scaler';
+	import { scaleRecipeLocal, normalizeUnits } from '$lib/recipe-scaler';
 
 	let { data, form } = $props<{ data: PageData; form: ActionData }>();
 
@@ -174,7 +174,7 @@
 	});
 
 	// Display ingredients/instructions: scaled if active, original otherwise
-	let displayIngredients = $derived(activeScale()?.ingredients ?? data.recipe.ingredients);
+	let displayIngredients = $derived((activeScale()?.ingredients ?? data.recipe.ingredients).map(normalizeUnits));
 	let displayInstructions = $derived(activeScale()?.instructions ?? data.recipe.instructions);
 
 	// Scaled yield display

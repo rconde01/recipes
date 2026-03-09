@@ -4,6 +4,23 @@
  * from both client and server code.
  */
 
+// Map long-form unit names to standard abbreviations
+const UNIT_ABBREVIATIONS: [RegExp, string][] = [
+	[/\btablespoons?\b/gi, 'tbsp'],
+	[/\bteaspoons?\b/gi, 'tsp'],
+];
+
+/**
+ * Replace long-form unit names with standard abbreviations (tsp, tbsp).
+ */
+export function normalizeUnits(text: string): string {
+	let result = text;
+	for (const [pattern, abbrev] of UNIT_ABBREVIATIONS) {
+		result = result.replace(pattern, abbrev);
+	}
+	return result;
+}
+
 export interface ScaledIngredient {
 	original: string;
 	scaled: string;
@@ -78,7 +95,7 @@ export function scaleIngredient(raw: string, factor: number): ScaledIngredient {
 	const unit = unitMatch ? unitMatch[1] : '';
 	const name = unitMatch ? rest.slice(unitMatch[0].length) : rest;
 
-	const scaledStr = `${formatQuantity(scaledQty)} ${rest}`;
+	const scaledStr = normalizeUnits(`${formatQuantity(scaledQty)} ${rest}`);
 
 	return {
 		original: raw,
@@ -99,7 +116,7 @@ export function scaleInstruction(text: string, factor: number): string {
 	return text.replace(unitPattern, (_match, qty, unit) => {
 		const parsed = parseFraction(qty);
 		const scaled = parsed * factor;
-		return `${formatQuantity(scaled)} ${unit}`;
+		return `${formatQuantity(scaled)} ${normalizeUnits(unit)}`;
 	});
 }
 
