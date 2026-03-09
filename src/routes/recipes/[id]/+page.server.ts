@@ -80,11 +80,13 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 				if (!raw) continue;
 				const lower = raw.toLowerCase().trim();
 				if (lower.length >= 3) candidates.add(lower);
-				// Also add the last word if it's long enough (handles "all-purpose flour" → "flour")
+				// Also add each individual word (handles "vanilla extract" → "vanilla",
+				// "all-purpose flour" → "flour", etc.)
 				const words = lower.split(/\s+/);
 				if (words.length > 1) {
-					const last = words[words.length - 1];
-					if (last.length >= 3) candidates.add(last);
+					for (const word of words) {
+						if (word.length >= 3) candidates.add(word);
+					}
 				}
 			}
 			let firstUsedInStep = -1;
